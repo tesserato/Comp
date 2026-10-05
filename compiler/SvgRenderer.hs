@@ -43,7 +43,7 @@ renderChordSvg name diag =
         [ let x = leftMargin + (s - 1) * stringSpacing
               y = topMargin - 8
           in case mFret of
-               Nothing -> "<text x=\"" ++ show x ++ "\" y=\"" ++ show y ++ "\" font-size=\"11\" font-weight=\"bold\" fill=\"#ef4444\" text-anchor=\"middle\" font-family=\"sans-serif\">×</text>"
+               Nothing -> "<text x=\"" ++ show x ++ "\" y=\"" ++ show y ++ "\" font-size=\"11\" font-weight=\"bold\" fill=\"#ef4444\" text-anchor=\"middle\" font-family=\"sans-serif\">&#215;</text>"
                Just 0  -> "<circle cx=\"" ++ show x ++ "\" cy=\"" ++ show (y - 3) ++ "\" r=\"3.5\" stroke=\"#9ca3af\" stroke-width=\"1.5\" fill=\"none\" />"
                _       -> ""
         | (s, mFret) <- zip [1..6] (diagFrets diag)
