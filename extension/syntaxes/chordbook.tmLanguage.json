@@ -4,6 +4,7 @@
   "scopeName": "source.chordbook",
   "patterns": [
     { "include": "#comments" },
+    { "include": "#custom-chord-defs" },
     { "include": "#metadata" },
     { "include": "#sections" },
     { "include": "#chord-lines" }
@@ -14,6 +15,18 @@
         {
           "name": "comment.line.number-sign.chordbook",
           "match": "(#|//).*$"
+        }
+      ]
+    },
+    "custom-chord-defs": {
+      "patterns": [
+        {
+          "match": "^\\s*([A-G][b#]?(?:maj9|maj7|maj|min9|min7|min|m9|m7b5|m7|m6|m|7sus4|sus4|sus2|sus|dim7|dim|aug7|aug|add9|add2|add11|13|11|9|7|6|5|[+oøΔ])?(?:\\/[A-G][#b]?)?)\\s*(:)\\s*([xX0-9,\\s]{6,})\\s*$",
+          "captures": {
+            "1": { "name": "entity.name.type.class.chord.custom.chordbook" },
+            "2": { "name": "punctuation.separator.key-value.chordbook" },
+            "3": { "name": "constant.numeric.fretboard.fretdef.chordbook" }
+          }
         }
       ]
     },

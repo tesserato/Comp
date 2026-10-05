@@ -1,35 +1,87 @@
-module Parser (parseSongSheet) where
+module Parser
+  ( parseSongSheet
+  , parseCustomChordDef
+  ) where
 
 import AST
 import ChordValidator (isChordLine, locateChords)
-import Data.Char (isSpace)
+import Data.Char (isDigit, isSpace, toUpper)
 import Data.List (dropWhileEnd, isPrefixOf)
 import Data.Maybe (mapMaybe)
 
 parseSongSheet :: String -> Song
 parseSongSheet input =
   let allLines = lines input
-      (metaLines, bodyLines) = spanMetadata allLines
+      (headerLines, bodyLines) = spanHeader allLines
+      (customChords, metaLines) = extractCustomChords headerLines
       metadata = mapMaybe parseMetaLine metaLines
-      sections = parseSections bodyLines
-  in Song metadata sections
+      (bodyCustoms, cleanBody) = extractBodyCustomChords bodyLines
+      allCustoms = customChords ++ bodyCustoms
+      sections = parseSections cleanBody
+  in Song metadata allCustoms sections
 
-spanMetadata :: [String] -> ([String], [String])
-spanMetadata = go []
+spanHeader :: [String] -> ([String], [String])
+spanHeader = go []
   where
     go acc [] = (reverse acc, [])
     go acc (l:ls)
-      | isMetaLine l = go (l:acc) ls
+      | isHeaderLine l = go (l:acc) ls
       | all isSpace l && null acc = go acc ls
       | all isSpace l = (reverse acc, ls)
       | otherwise = (reverse acc, l:ls)
 
-isMetaLine :: String -> Bool
-isMetaLine line =
+isHeaderLine :: String -> Bool
+isHeaderLine line =
   case break (== ':') line of
     (k, v) | not (null k) && not (null v) && not (isSpace (head k)) ->
-      all (\c -> not (isSpace c) || c == ' ') k && not (isPrefixOf "[" (trim k))
+      not (isPrefixOf "[" (trim k))
     _ -> False
+
+extractCustomChords :: [String] -> ([(String, FretDef)], [String])
+extractCustomChords = foldr step ([], [])
+  where
+    step l (cAcc, mAcc) =
+      case parseCustomChordDef l of
+        Just c  -> (c:cAcc, mAcc)
+        Nothing -> (cAcc, l:mAcc)
+
+extractBodyCustomChords :: [String] -> ([(String, FretDef)], [String])
+extractBodyCustomChords = foldr step ([], [])
+  where
+    step l (cAcc, lAcc) =
+      case parseCustomChordDef l of
+        Just c  -> (c:cAcc, lAcc)
+        Nothing -> (cAcc, l:lAcc)
+
+parseCustomChordDef :: String -> Maybe (String, FretDef)
+parseCustomChordDef line =
+  case break (== ':') (trim line) of
+    (name, ':':fretSpec) ->
+      let cleanFret = trim fretSpec
+      in case parseFretSpec cleanFret of
+           Just frets | length frets == 6 -> Just (trim name, FretDef frets)
+           _ -> Nothing
+    _ -> Nothing
+
+parseFretSpec :: String -> Maybe [Maybe Int]
+parseFretSpec [] = Nothing
+parseFretSpec str
+  | any (\c -> c == ',' || c == ' ') str =
+      let tokens = words (map (\c -> if c == ',' then ' ' else c) str)
+      in mapM parseToken tokens
+  | length str == 6 =
+      mapM parseChar str
+  | otherwise = Nothing
+  where
+    parseChar c
+      | c == 'x' || c == 'X' = Just Nothing
+      | isDigit c            = Just (Just (fromEnum c - fromEnum '0'))
+      | otherwise            = Nothing
+
+    parseToken tok
+      | map toUpper tok == "X" = Just Nothing
+      | all isDigit tok        = Just (Just (read tok))
+      | otherwise              = Nothing
 
 parseMetaLine :: String -> Maybe (String, String)
 parseMetaLine line =
@@ -37,10 +89,11 @@ parseMetaLine line =
     (k, ':':v) -> Just (trim k, trim v)
     _          -> Nothing
 
+parseSections :: [String] -> [Section]
 trim :: String -> String
 trim = dropWhile isSpace . dropWhileEnd isSpace
 
-parseSections :: [String] -> [Section]
+
 parseSections rawLines =
   let cleanLines = dropWhile (all isSpace) rawLines
   in groupIntoSections cleanLines
@@ -55,7 +108,7 @@ extractSectionHeader :: String -> String
 extractSectionHeader l =
   let s = trim l
   in if isPrefixOf "[" s && isPrefixOf "]" (reverse s)
-     then init (tail s)
+     then drop 1 (dropWhileEnd (== ']') s)
      else trim (filter (/= '=') s)
 
 groupIntoSections :: [String] -> [Section]
@@ -124,3 +177,5 @@ sliceByChords currPos (pc:pcs) lyrics
           chordPart = Just (chordName pc, chordParsed pc)
           lyricSlice = take (nextPos - chordCol pc) (drop (chordCol pc) lyrics)
       in ChordSyllable chordPart lyricSlice : sliceByChords nextPos pcs lyrics
+
+

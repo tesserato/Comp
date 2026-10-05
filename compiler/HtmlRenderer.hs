@@ -2,7 +2,38 @@ module HtmlRenderer (generateHtml) where
 
 import AST
 import CSS (cssStyles)
+import Fingering (solveChordDiagram, defaultChordLibrary)
+import SvgRenderer (renderChordSvg)
 import Data.Char (toLower)
+import Data.List (nub)
+import Data.Maybe (mapMaybe)
+
+type ChordMap = [(String, ChordDiagram)]
+
+buildChordMap :: Song -> ChordMap
+buildChordMap song =
+  let usedChordNames = nub (collectSongChords song)
+      customs = songCustomChords song
+      resolveChord name =
+        case lookup name customs of
+          Just (FretDef frets) ->
+            Just (name, solveChordDiagram frets)
+          Nothing ->
+            case lookup name defaultChordLibrary of
+              Just frets -> Just (name, solveChordDiagram frets)
+              Nothing    -> Nothing
+  in mapMaybe resolveChord usedChordNames
+
+collectSongChords :: Song -> [String]
+collectSongChords song =
+  concatMap collectSectionChords (songSections song)
+  where
+    collectSectionChords sec = concatMap collectItemChords (sectionItems sec)
+    collectItemChords (PairedLine syllables) =
+      [ name | ChordSyllable (Just (name, _)) _ <- syllables ]
+    collectItemChords (ChordOnlyLine chords) =
+      [ chordName pc | pc <- chords ]
+    collectItemChords _ = []
 
 escapeHtml :: String -> String
 escapeHtml [] = []
@@ -14,25 +45,28 @@ escapeHtml ('\'':cs) = "&#39;" ++ escapeHtml cs
 escapeHtml (c:cs) = c : escapeHtml cs
 
 generateHtml :: Song -> String
-generateHtml song = unlines
-  [ "<!DOCTYPE html>"
-  , "<html lang=\"en\">"
-  , "<head>"
-  , "  <meta charset=\"UTF-8\">"
-  , "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
-  , "  <title>" ++ escapeHtml (getTitle song) ++ "</title>"
-  , "  <style>"
-  , cssStyles
-  , "  </style>"
-  , "</head>"
-  , "<body>"
-  , "  <main class=\"chordbook-container\">"
-  , renderHeader song
-  , renderBody song
-  , "  </main>"
-  , "</body>"
-  , "</html>"
-  ]
+generateHtml song =
+  let chordMap = buildChordMap song
+  in unlines
+    [ "<!DOCTYPE html>"
+    , "<html lang=\"en\">"
+    , "<head>"
+    , "  <meta charset=\"UTF-8\">"
+    , "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
+    , "  <title>" ++ escapeHtml (getTitle song) ++ "</title>"
+    , "  <style>"
+    , cssStyles
+    , "  </style>"
+    , "</head>"
+    , "<body>"
+    , "  <main class=\"chordbook-container\">"
+    , renderHeader song
+    , renderBody song chordMap
+    , renderChordPalette chordMap
+    , "  </main>"
+    , "</body>"
+    , "</html>"
+    ]
 
 getTitle :: Song -> String
 getTitle song =
@@ -41,6 +75,7 @@ getTitle song =
     Nothing -> case songMetadata song of
                  ((_, v):_) -> v
                  []         -> "Untitled Song"
+
 
 renderHeader :: Song -> String
 renderHeader song =
@@ -73,49 +108,71 @@ renderHeader song =
     , "    </header>"
     ]
 
-renderBody :: Song -> String
-renderBody song = unlines $
+renderBody :: Song -> ChordMap -> String
+renderBody song chordMap = unlines $
   [ "    <section class=\"song-content\">" ] ++
-  map renderSection (songSections song) ++
+  map (renderSection chordMap) (songSections song) ++
   [ "    </section>" ]
 
-renderSection :: Section -> String
-renderSection (Section mName items) = unlines $
+renderSection :: ChordMap -> Section -> String
+renderSection chordMap (Section mName items) = unlines $
   [ "      <div class=\"song-section\">" ] ++
   (case mName of
      Just name -> [ "        <h2 class=\"section-title\">" ++ escapeHtml name ++ "</h2>" ]
      Nothing   -> []) ++
   [ "        <div class=\"section-lines\">" ] ++
-  map renderItem items ++
+  map (renderItem chordMap) items ++
   [ "        </div>"
   , "      </div>"
   ]
 
-renderItem :: SectionItem -> String
-renderItem (PairedLine syllables) =
+renderItem :: ChordMap -> SectionItem -> String
+renderItem chordMap (PairedLine syllables) =
   "          <div class=\"chord-lyric-row\">" ++
-  concatMap renderSyllable syllables ++
+  concatMap (renderSyllable chordMap) syllables ++
   "</div>"
-renderItem (ChordOnlyLine chords) =
+renderItem chordMap (ChordOnlyLine chords) =
   "          <div class=\"chord-only-row\">" ++
-  concatMap renderPlacedChord chords ++
+  concatMap (renderPlacedChord chordMap) chords ++
   "</div>"
-renderItem (LyricOnlyLine lyric) =
+renderItem _ (LyricOnlyLine lyric) =
   "          <div class=\"lyric-only-row\">" ++ escapeHtml lyric ++ "</div>"
-renderItem (CommentLine comment) =
+renderItem _ (CommentLine comment) =
   "          <div class=\"comment-row\">" ++ escapeHtml comment ++ "</div>"
 
-renderSyllable :: ChordSyllable -> String
-renderSyllable (ChordSyllable mChord lyric) =
+renderSyllable :: ChordMap -> ChordSyllable -> String
+renderSyllable chordMap (ChordSyllable mChord lyric) =
   let chordHtml = case mChord of
         Just (name, parsed) ->
-          let valClass = if parsed /= Nothing then "chord-valid" else "chord-custom"
-          in "<span class=\"chord " ++ valClass ++ "\">" ++ escapeHtml name ++ "</span>"
+          renderChordWithHover chordMap name (parsed /= Nothing)
         Nothing -> "<span class=\"chord-spacer\">&nbsp;</span>"
       lyricText = if null lyric then "&nbsp;" else escapeHtml lyric
   in "<span class=\"chord-lyric-pair\">" ++ chordHtml ++ "<span class=\"lyric\">" ++ lyricText ++ "</span></span>"
 
-renderPlacedChord :: PlacedChord -> String
-renderPlacedChord (PlacedChord _ name parsed) =
-  let valClass = if parsed /= Nothing then "chord-valid" else "chord-custom"
-  in "<span class=\"chord-tab-item\"><span class=\"chord " ++ valClass ++ "\">" ++ escapeHtml name ++ "</span></span>"
+renderPlacedChord :: ChordMap -> PlacedChord -> String
+renderPlacedChord chordMap (PlacedChord _ name parsed) =
+  "<span class=\"chord-tab-item\">" ++ renderChordWithHover chordMap name (parsed /= Nothing) ++ "</span>"
+
+renderChordWithHover :: ChordMap -> String -> Bool -> String
+renderChordWithHover chordMap name isValid =
+  let valClass = if isValid then "chord-valid" else "chord-custom"
+  in case lookup name chordMap of
+       Just diag ->
+         "<span class=\"chord-with-diagram\"><span class=\"chord " ++ valClass ++ "\">" ++ escapeHtml name ++ "</span><div class=\"chord-popover\">" ++ renderChordSvg name diag ++ "</div></span>"
+       Nothing ->
+         "<span class=\"chord " ++ valClass ++ "\">" ++ escapeHtml name ++ "</span>"
+
+renderChordPalette :: ChordMap -> String
+renderChordPalette [] = ""
+renderChordPalette chordMap = unlines $
+  [ "    <footer class=\"song-chords-palette\">"
+  , "      <div class=\"palette-title\">Chords in this song</div>"
+  , "      <div class=\"palette-grid\">"
+  ] ++
+  [ "        <div class=\"palette-item\">" ++ renderChordSvg name diag ++ "</div>"
+  | (name, diag) <- chordMap
+  ] ++
+  [ "      </div>"
+  , "    </footer>"
+  ]
+
