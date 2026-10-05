@@ -80,6 +80,10 @@ function solveFingering(frets) {
   for (const p of sorted) {
     fingerArr[p.str - 1] = Math.min(4, fNum++);
   }
+  return { fingers: fingerArr, barres: [], baseFret };
+}
+
+
 function renderHoverContent(chordName, frets) {
   const { fingers, barres, baseFret } = solveFingering(frets);
   const stringNames = ['E', 'A', 'D', 'G', 'B', 'e'];
@@ -163,22 +167,47 @@ function parseFretSpec(str) {
 function activate(context) {
   const hoverProvider = vscode.languages.registerHoverProvider('chordbook', {
     provideHover(document, position) {
-      const lineText = document.lineAt(position.line).text;
+      const line = position.line;
+      const col = position.character;
+      const lineText = document.lineAt(line).text;
       if (/^\s*(#|\/\/)/.test(lineText)) return null;
 
-      const wordRange = document.getWordRangeAtPosition(position, /[A-G][b#♯♭]?(?:maj9|maj7|maj|min9|min7|min|m9|m7b5|m7|m6|m|7sus4|sus4|sus2|sus|dim7|dim|aug7|aug|add9|add2|add11|13|11|9|7|6|5|[+oøΔ])?(?:\/[A-G][#b♯♭]?)?/);
-      if (!wordRange) return null;
+      // Extract all chord tokens on the current line and find if cursor is on one
+      const chordRegex = /\b([A-G][b#♯♭]?(?:maj9|maj7|maj|min9|min7|min|m9|m7b5|m7|m6|m|7sus4|sus4|sus2|sus|dim7|dim|aug7|aug|add9|add2|add11|13|11|9|7|6|5|[+oøΔ])?(?:\/[A-G][#b♯♭]?)?)\b/g;
+      let m;
+      let matchedChord = null;
+      let matchedRange = null;
 
-      const chordCandidate = document.getText(wordRange);
+      while ((m = chordRegex.exec(lineText)) !== null) {
+        const start = m.index;
+        const end = m.index + m[0].length;
+        if (col >= start && col <= end) {
+          matchedChord = m[0];
+          matchedRange = new vscode.Range(line, start, line, end);
+          break;
+        }
+      }
+
+      if (!matchedChord) {
+        // Fallback to word range
+        const wordRange = document.getWordRangeAtPosition(position, /[A-G][b#♯♭]?(?:maj9|maj7|maj|min9|min7|min|m9|m7b5|m7|m6|m|7sus4|sus4|sus2|sus|dim7|dim|aug7|aug|add9|add2|add11|13|11|9|7|6|5|[+oøΔ])?(?:\/[A-G][#b♯♭]?)?/);
+        if (wordRange) {
+          matchedChord = document.getText(wordRange);
+          matchedRange = wordRange;
+        }
+      }
+
+      if (!matchedChord) return null;
+
       const customChords = findCustomChords(document);
-      let frets = customChords.get(chordCandidate);
+      let frets = customChords.get(matchedChord);
 
       if (!frets) {
-        frets = CHORD_LIBRARY[chordCandidate];
+        frets = CHORD_LIBRARY[matchedChord];
       }
 
       if (frets) {
-        return new vscode.Hover(renderHoverContent(chordCandidate, frets), wordRange);
+        return new vscode.Hover(renderHoverContent(matchedChord, frets), matchedRange);
       }
       return null;
     }
@@ -193,6 +222,3 @@ module.exports = {
   activate,
   deactivate
 };
-
-  return { fingers: fingerArr, barres: [], baseFret };
-}
