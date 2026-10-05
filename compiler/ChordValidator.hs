@@ -24,7 +24,9 @@ parseRootNote = do
         'E' -> E; 'F' -> F; 'G' -> G
         _   -> error "unreachable"
   acc <- (P.char '#' >> return Sharp)
+     <|> (P.char '♯' >> return Sharp)
      <|> (P.char 'b' >> return Flat)
+     <|> (P.char '♭' >> return Flat)
      <|> return Natural
   return (root, acc)
 

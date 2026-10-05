@@ -25,43 +25,52 @@ spanHeader = go []
   where
     go acc [] = (reverse acc, [])
     go acc (l:ls)
+      | isComment l = go (l:acc) ls
       | isHeaderLine l = go (l:acc) ls
       | all isSpace l && null acc = go acc ls
       | all isSpace l = (reverse acc, ls)
       | otherwise = (reverse acc, l:ls)
 
 isHeaderLine :: String -> Bool
-isHeaderLine line =
-  case break (== ':') line of
-    (k, v) | not (null k) && not (null v) && not (isSpace (head k)) ->
-      not (isPrefixOf "[" (trim k))
-    _ -> False
+isHeaderLine line
+  | isComment line = False
+  | otherwise =
+      case break (== ':') line of
+        (k, v) | not (null k) && not (null v) && not (isSpace (head k)) ->
+          not (isPrefixOf "[" (trim k))
+        _ -> False
 
 extractCustomChords :: [String] -> ([(String, FretDef)], [String])
 extractCustomChords = foldr step ([], [])
   where
-    step l (cAcc, mAcc) =
-      case parseCustomChordDef l of
-        Just c  -> (c:cAcc, mAcc)
-        Nothing -> (cAcc, l:mAcc)
+    step l (cAcc, mAcc)
+      | isComment l = (cAcc, mAcc)
+      | otherwise =
+          case parseCustomChordDef l of
+            Just c  -> (c:cAcc, mAcc)
+            Nothing -> (cAcc, l:mAcc)
 
 extractBodyCustomChords :: [String] -> ([(String, FretDef)], [String])
 extractBodyCustomChords = foldr step ([], [])
   where
-    step l (cAcc, lAcc) =
-      case parseCustomChordDef l of
-        Just c  -> (c:cAcc, lAcc)
-        Nothing -> (cAcc, l:lAcc)
+    step l (cAcc, lAcc)
+      | isComment l = (cAcc, l:lAcc)
+      | otherwise =
+          case parseCustomChordDef l of
+            Just c  -> (c:cAcc, lAcc)
+            Nothing -> (cAcc, l:lAcc)
 
 parseCustomChordDef :: String -> Maybe (String, FretDef)
-parseCustomChordDef line =
-  case break (== ':') (trim line) of
-    (name, ':':fretSpec) ->
-      let cleanFret = trim fretSpec
-      in case parseFretSpec cleanFret of
-           Just frets | length frets == 6 -> Just (trim name, FretDef frets)
-           _ -> Nothing
-    _ -> Nothing
+parseCustomChordDef line
+  | isComment line = Nothing
+  | otherwise =
+      case break (== ':') (trim line) of
+        (name, ':':fretSpec) ->
+          let cleanFret = trim fretSpec
+          in case parseFretSpec cleanFret of
+               Just frets | length frets == 6 -> Just (trim name, FretDef frets)
+               _ -> Nothing
+        _ -> Nothing
 
 parseFretSpec :: String -> Maybe [Maybe Int]
 parseFretSpec [] = Nothing
@@ -84,16 +93,12 @@ parseFretSpec str
       | otherwise              = Nothing
 
 parseMetaLine :: String -> Maybe (String, String)
-parseMetaLine line =
-  case break (== ':') line of
-    (k, ':':v) -> Just (trim k, trim v)
-    _          -> Nothing
-
+parseMetaLine line
+  | isComment line = Nothing
+  | otherwise =
+      case break (== ':') line of
+        (k, ':':v) -> Just (trim k, trim v)
 parseSections :: [String] -> [Section]
-trim :: String -> String
-trim = dropWhile isSpace . dropWhileEnd isSpace
-
-
 parseSections rawLines =
   let cleanLines = dropWhile (all isSpace) rawLines
   in groupIntoSections cleanLines
@@ -179,3 +184,5 @@ sliceByChords currPos (pc:pcs) lyrics
       in ChordSyllable chordPart lyricSlice : sliceByChords nextPos pcs lyrics
 
 
+trim :: String -> String
+trim = dropWhile isSpace . dropWhileEnd isSpace
