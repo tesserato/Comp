@@ -80,6 +80,9 @@ function solveFingering(frets) {
   for (const p of sorted) {
     fingerArr[p.str - 1] = Math.min(4, fNum++);
   }
+  return { fingers: fingerArr, barres: [], baseFret };
+}
+
 function renderHoverContent(chordName, frets) {
   const { fingers, barres, baseFret } = solveFingering(frets);
   const stringNames = ['E', 'A', 'D', 'G', 'B', 'e'];
@@ -134,15 +137,18 @@ function renderHoverContent(chordName, frets) {
 
 function findCustomChords(document) {
   const map = new Map();
-  const text = document.getText();
-  const regex = /^\s*([A-G][b#♯♭]?(?:maj9|maj7|maj|min9|min7|min|m9|m7b5|m7|m6|m|7sus4|sus4|sus2|sus|dim7|dim|aug7|aug|add9|add2|add11|13|11|9|7|6|5|[+oøΔ])?(?:\/[A-G][#b♯♭]?)?)\s*:\s*([xX0-9,\s]{6,})\s*$/gm;
-  let match;
-  while ((match = regex.exec(text)) !== null) {
-    const name = match[1].trim();
-    const rawFret = match[2].trim();
-    const frets = parseFretSpec(rawFret);
-    if (frets && frets.length === 6) {
-      map.set(name, frets);
+  const lineCount = document.lineCount;
+  for (let i = 0; i < lineCount; i++) {
+    const rawLine = document.lineAt(i).text.trim();
+    if (!rawLine || rawLine.startsWith('#') || rawLine.startsWith('//')) continue;
+    const colonIdx = rawLine.indexOf(':');
+    if (colonIdx > 0) {
+      const name = rawLine.substring(0, colonIdx).trim();
+      const val = rawLine.substring(colonIdx + 1).trim();
+      const frets = parseFretSpec(val);
+      if (frets && frets.length === 6) {
+        map.set(name, frets);
+      }
     }
   }
   return map;
@@ -170,11 +176,29 @@ function activate(context) {
       const lineText = document.lineAt(line).text;
       if (/^\s*(#|\/\/)/.test(lineText)) return null;
 
-      CHORD_REGEX.lastIndex = 0;
-      let m;
       let matchedChord = null;
       let matchedRange = null;
 
+      // 1. If user is hovering over a definition line itself: "D/F#:200232"
+      const colonIdx = lineText.indexOf(':');
+      if (colonIdx > 0) {
+        const potentialKey = lineText.substring(0, colonIdx).trim();
+        const potentialVal = lineText.substring(colonIdx + 1).trim();
+        const frets = parseFretSpec(potentialVal);
+        if (frets && frets.length === 6) {
+          const keyStart = lineText.indexOf(potentialKey);
+          const keyEnd = keyStart + potentialKey.length;
+          if (col >= keyStart && col <= keyEnd) {
+            matchedChord = potentialKey;
+            matchedRange = new vscode.Range(line, keyStart, line, keyEnd);
+            return new vscode.Hover(renderHoverContent(matchedChord, frets), matchedRange);
+          }
+        }
+      }
+
+      // 2. Scan for chords on the line
+      CHORD_REGEX.lastIndex = 0;
+      let m;
       while ((m = CHORD_REGEX.exec(lineText)) !== null) {
         const chordName = m[1];
         const start = m.index + (m[0].length - chordName.length);
@@ -183,6 +207,15 @@ function activate(context) {
           matchedChord = chordName;
           matchedRange = new vscode.Range(line, start, line, end);
           break;
+        }
+      }
+
+      // 3. Fallback: try word range at position
+      if (!matchedChord) {
+        const wordRange = document.getWordRangeAtPosition(position, /[A-G][b#♯♭]?(?:maj9|maj7|maj|min9|min7|min|m9|m7b5|m7|m6|m|7sus4|sus4|sus2|sus|dim7|dim|aug7|aug|add9|add2|add11|13|11|9|7|6|5|[+oøΔ])?(?:\/[A-G][#b♯♭]?)?/);
+        if (wordRange) {
+          matchedChord = document.getText(wordRange);
+          matchedRange = wordRange;
         }
       }
 
@@ -211,5 +244,3 @@ module.exports = {
   deactivate
 };
 
-  return { fingers: fingerArr, barres: [], baseFret };
-}
