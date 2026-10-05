@@ -83,7 +83,7 @@
       "patterns": [
         {
           "name": "entity.name.function.chord.chordbook",
-          "match": "\\b([A-G][b#♯♭]?(?:maj9|maj7|maj|min9|min7|min|m9|m7b5|m7|m6|m|7sus4|sus4|sus2|sus|dim7|dim|aug7|aug|add9|add2|add11|13|11|9|7|6|5|[+oøΔ])?(?:\\/[A-G][b#♯♭]?)?)\\b"
+          "match": "(?:^|(?<=\\s|[|/%~()\\[\\]]))([A-G][b#♯♭]?(?:maj9|maj7|maj|min9|min7|min|m9|m7b5|m7|m6|m|7sus4|sus4|sus2|sus|dim7|dim|aug7|aug|add9|add2|add11|13|11|9|7|6|5|[+oøΔ])?(?:\\/[A-G][b#♯♭]?)?)(?=\\s|[|/%~()\\[\\],.:]|$)"
         },
         {
           "name": "keyword.control.chord.nocord.chordbook",

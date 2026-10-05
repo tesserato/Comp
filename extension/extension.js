@@ -80,17 +80,13 @@ function solveFingering(frets) {
   for (const p of sorted) {
     fingerArr[p.str - 1] = Math.min(4, fNum++);
   }
-  return { fingers: fingerArr, barres: [], baseFret };
-}
-
-
 function renderHoverContent(chordName, frets) {
   const { fingers, barres, baseFret } = solveFingering(frets);
   const stringNames = ['E', 'A', 'D', 'G', 'B', 'e'];
-  const headerSymbols = frets.map(f => f === null ? 'x' : f === 0 ? 'o' : ' ').join(' ');
+  const headerSymbols = frets.map(f => f === null ? 'x' : f === 0 ? 'o' : ' ').join('   ');
 
   let asciiGrid = `  ${chordName} Chord Diagram\n\n`;
-  asciiGrid += `  ${headerSymbols}\n`;
+  asciiGrid += `   ${headerSymbols}\n`;
   asciiGrid += `  ${baseFret === 1 ? '==+===+===+===+===+==' : '--+---+---+---+---+--'}\n`;
 
   const numFrets = 4;
@@ -103,7 +99,7 @@ function renderHoverContent(chordName, frets) {
       const fretVal = frets[s];
       if (fretVal === currentFret) {
         const finger = fingers[s];
-        row += finger ? `(${finger})` : '[o]';
+        row += finger ? ` ${finger} ` : ' o ';
       } else if (isBarreFret) {
         const b = barres.find(b => b.fret === currentFret);
         if (s + 1 >= b.minStr && s + 1 <= b.maxStr) {
@@ -132,7 +128,7 @@ function renderHoverContent(chordName, frets) {
   md.isTrusted = true;
   md.appendMarkdown(`### **${chordName}** \`[${fretStr}]\`\n\n`);
   md.appendCodeblock(asciiGrid, 'text');
-  md.appendMarkdown(`\n**Fingering:**\n${fingerSummary}\n`);
+  md.appendMarkdown(`\n**Fingering:** ${fingerSummary}\n`);
   return md;
 }
 
@@ -164,6 +160,8 @@ function parseFretSpec(str) {
   return null;
 }
 
+const CHORD_REGEX = /(?:^|(?<=\s|[|/%~()\[\]]))([A-G][b#♯♭]?(?:maj9|maj7|maj|min9|min7|min|m9|m7b5|m7|m6|m|7sus4|sus4|sus2|sus|dim7|dim|aug7|aug|add9|add2|add11|13|11|9|7|6|5|[+oøΔ])?(?:\/[A-G][b#♯♭]?)?)(?=\s|[|/%~()\[\],.:]|$)/g;
+
 function activate(context) {
   const hoverProvider = vscode.languages.registerHoverProvider('chordbook', {
     provideHover(document, position) {
@@ -172,28 +170,19 @@ function activate(context) {
       const lineText = document.lineAt(line).text;
       if (/^\s*(#|\/\/)/.test(lineText)) return null;
 
-      // Extract all chord tokens on the current line and find if cursor is on one
-      const chordRegex = /\b([A-G][b#♯♭]?(?:maj9|maj7|maj|min9|min7|min|m9|m7b5|m7|m6|m|7sus4|sus4|sus2|sus|dim7|dim|aug7|aug|add9|add2|add11|13|11|9|7|6|5|[+oøΔ])?(?:\/[A-G][#b♯♭]?)?)\b/g;
+      CHORD_REGEX.lastIndex = 0;
       let m;
       let matchedChord = null;
       let matchedRange = null;
 
-      while ((m = chordRegex.exec(lineText)) !== null) {
-        const start = m.index;
-        const end = m.index + m[0].length;
+      while ((m = CHORD_REGEX.exec(lineText)) !== null) {
+        const chordName = m[1];
+        const start = m.index + (m[0].length - chordName.length);
+        const end = start + chordName.length;
         if (col >= start && col <= end) {
-          matchedChord = m[0];
+          matchedChord = chordName;
           matchedRange = new vscode.Range(line, start, line, end);
           break;
-        }
-      }
-
-      if (!matchedChord) {
-        // Fallback to word range
-        const wordRange = document.getWordRangeAtPosition(position, /[A-G][b#♯♭]?(?:maj9|maj7|maj|min9|min7|min|m9|m7b5|m7|m6|m|7sus4|sus4|sus2|sus|dim7|dim|aug7|aug|add9|add2|add11|13|11|9|7|6|5|[+oøΔ])?(?:\/[A-G][#b♯♭]?)?/);
-        if (wordRange) {
-          matchedChord = document.getText(wordRange);
-          matchedRange = wordRange;
         }
       }
 
@@ -201,7 +190,6 @@ function activate(context) {
 
       const customChords = findCustomChords(document);
       let frets = customChords.get(matchedChord);
-
       if (!frets) {
         frets = CHORD_LIBRARY[matchedChord];
       }
@@ -222,3 +210,6 @@ module.exports = {
   activate,
   deactivate
 };
+
+  return { fingers: fingerArr, barres: [], baseFret };
+}
