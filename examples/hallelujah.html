@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hallelujah</title>
+  <style>
+    :root {
+      --bg-color: #0b0f19;
+      --card-bg: #111827;
+      --border-color: #1f2937;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --chord-color: #38bdf8;
+      --chord-custom-color: #fb923c;
+      --accent: #f59e0b;
+      --section-color: #34d399;
+      --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg-color);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      padding: 3rem 1.5rem;
+      line-height: 1.6;
+      display: flex;
+      justify-content: center;
+    }
+    .chordbook-container {
+      max-width: 880px;
+      width: 100%;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 3rem 3.5rem;
+      box-shadow: 0 20px 40px -15px rgba(0,0,0,0.7);
+    }
+    .song-header {
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 1.8rem;
+      margin-bottom: 2.5rem;
+    }
+    .song-title {
+      font-size: 2.5rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, #ffffff 40%, #9ca3af 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .song-artist {
+      font-size: 1.3rem;
+      color: var(--accent);
+      margin-top: 0.35rem;
+      font-weight: 500;
+    }
+    .song-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 1.25rem;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      padding: 0.3rem 0.75rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #e5e7eb;
+    }
+    .badge-label {
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-right: 0.5rem;
+    }
+    .song-section {
+      margin-bottom: 2.5rem;
+    }
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--section-color);
+      border-left: 3px solid var(--section-color);
+      padding-left: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .section-lines {
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+      font-family: var(--font-mono);
+      font-size: 1.05rem;
+    }
+    .chord-lyric-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      line-height: 1.2;
+    }
+    .chord-lyric-pair {
+      display: inline-flex;
+      flex-direction: column;
+      vertical-align: bottom;
+      white-space: pre;
+    }
+    .chord {
+      font-weight: 700;
+      font-size: 0.95rem;
+      line-height: 1.3;
+      min-height: 1.4em;
+      user-select: none;
+    }
+    .chord-valid { color: var(--chord-color); }
+    .chord-custom { color: var(--chord-custom-color); }
+    .chord-spacer {
+      min-height: 1.4em;
+      visibility: hidden;
+    }
+    .lyric {
+      color: var(--text-main);
+      line-height: 1.5;
+      white-space: pre;
+    }
+    .chord-only-row {
+      display: flex;
+      gap: 1.8rem;
+      font-weight: 700;
+      background: rgba(56, 189, 248, 0.06);
+      border: 1px dashed rgba(56, 189, 248, 0.3);
+      border-radius: 8px;
+      padding: 0.5rem 1rem;
+      width: fit-content;
+    }
+    .chord-tab-item { font-size: 1rem; }
+    .lyric-only-row {
+      color: var(--text-main);
+    }
+    .comment-row {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      font-style: italic;
+    }
+    @media print {
+      body { background: #fff; color: #111; padding: 0; }
+      .chordbook-container { box-shadow: none; border: none; padding: 0; width: 100%; max-width: 100%; background: #fff; }
+      .chord { color: #0284c7; }
+      .song-title { color: #111; -webkit-text-fill-color: initial; }
+      .song-artist { color: #d97706; }
+      .badge { background: #f3f4f6; border: 1px solid #d1d5db; color: #1f2937; }
+      .section-title { color: #059669; border-color: #059669; }
+      .chord-only-row { background: #f0fdf4; border-color: #059669; color: #0284c7; }
+      .lyric { color: #111; }
+    }
+
+  </style>
+</head>
+<body>
+  <main class="chordbook-container">
+    <header class="song-header">
+      <h1 class="song-title">Hallelujah</h1>
+      <div class="song-artist">Leonard Cohen</div>
+      <div class="song-badges">
+        <span class="badge badge-key"><span class="badge-label">KEY</span> C</span>
+        <span class="badge badge-capo"><span class="badge-label">CAPO</span> None</span>
+      </div>
+    </header>
+
+    <section class="song-content">
+      <div class="song-section">
+        <h2 class="section-title">Verse 1</h2>
+        <div class="section-lines">
+          <div class="chord-lyric-row"><span class="chord-lyric-pair"><span class="chord-spacer">&nbsp;</span><span class="lyric">Now </span></span><span class="chord-lyric-pair"><span class="chord chord-valid">C</span><span class="lyric">I&#39;ve heard there </span></span><span class="chord-lyric-pair"><span class="chord chord-valid">Am</span><span class="lyric">was a secret chord</span></span></div>
+          <div class="chord-lyric-row"><span class="chord-lyric-pair"><span class="chord-spacer">&nbsp;</span><span class="lyric">That </span></span><span class="chord-lyric-pair"><span class="chord chord-valid">C</span><span class="lyric">David played and it </span></span><span class="chord-lyric-pair"><span class="chord chord-valid">Am</span><span class="lyric">pleased the Lord</span></span></div>
+          <div class="chord-lyric-row"><span class="chord-lyric-pair"><span class="chord-spacer">&nbsp;</span><span class="lyric">But </span></span><span class="chord-lyric-pair"><span class="chord chord-valid">F</span><span class="lyric">you don&#39;t really </span></span><span class="chord-lyric-pair"><span class="chord chord-valid">G</span><span class="lyric">care for music, </span></span><span class="chord-lyric-pair"><span class="chord chord-valid">C</span><span class="lyric">do you?</span></span><span class="chord-lyric-pair"><span class="chord chord-valid">G</span><span class="lyric">&nbsp;</span></span></div>
+          <div class="chord-lyric-row"><span class="chord-lyric-pair"><span class="chord-spacer">&nbsp;</span><span class="lyric">It </span></span><span class="chord-lyric-pair"><span class="chord chord-valid">C</span><span class="lyric">goes like this, th</span></span><span class="chord-lyric-pair"><span class="chord chord-valid">F</span><span class="lyric">e fourth, t</span></span><span class="chord-lyric-pair"><span class="chord chord-valid">G</span><span class="lyric">he fifth</span></span></div>
+          <div class="chord-lyric-row"><span class="chord-lyric-pair"><span class="chord-spacer">&nbsp;</span><span class="lyric">The </span></span><span class="chord-lyric-pair"><span class="chord chord-valid">Am</span><span class="lyric">minor fall, the </span></span><span class="chord-lyric-pair"><span class="chord chord-valid">F</span><span class="lyric">major lift</span></span></div>
+          <div class="chord-lyric-row"><span class="chord-lyric-pair"><span class="chord-spacer">&nbsp;</span><span class="lyric">The </span></span><span class="chord-lyric-pair"><span class="chord chord-valid">G</span><span class="lyric">baffled king comp</span></span><span class="chord-lyric-pair"><span class="chord chord-valid">E7</span><span class="lyric">osing Hallelu</span></span><span class="chord-lyric-pair"><span class="chord chord-valid">Am</span><span class="lyric">jah</span></span></div>
+        </div>
+      </div>
+
+      <div class="song-section">
+        <h2 class="section-title">Chorus</h2>
+        <div class="section-lines">
+          <div class="chord-lyric-row"><span class="chord-lyric-pair"><span class="chord-spacer">&nbsp;</span><span class="lyric">Halle</span></span><span class="chord-lyric-pair"><span class="chord chord-valid">F</span><span class="lyric">lujah, Halle</span></span><span class="chord-lyric-pair"><span class="chord chord-valid">Am</span><span class="lyric">lujah</span></span></div>
+          <div class="chord-lyric-row"><span class="chord-lyric-pair"><span class="chord-spacer">&nbsp;</span><span class="lyric">Halle</span></span><span class="chord-lyric-pair"><span class="chord chord-valid">F</span><span class="lyric">lujah, Halle</span></span><span class="chord-lyric-pair"><span class="chord chord-valid">C</span><span class="lyric">lu-u-u-u</span></span><span class="chord-lyric-pair"><span class="chord chord-valid">G</span><span class="lyric">-jah</span></span><span class="chord-lyric-pair"><span class="chord chord-valid">C</span><span class="lyric">&nbsp;</span></span></div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+</body>
+</html>

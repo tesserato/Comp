@@ -1,23 +1,18 @@
-dist
-dist-*
-cabal-dev
+# Haskell artifacts
+dist/
+dist-newstyle/
 *.o
 *.hi
-*.hie
-*.chi
-*.chs.h
 *.dyn_o
 *.dyn_hi
-.hpc
-.hsenv
-.cabal-sandbox/
-cabal.sandbox.config
-*.prof
-*.aux
-*.hp
-*.eventlog
-.stack-work/
-cabal.project.local
-cabal.project.local~
-.HTF/
+*.exe
 .ghc.environment.*
+
+# Node / VS Code
+node_modules/
+*.vsix
+.vscode/
+
+# OS / Temporary
+.DS_Store
+Thumbs.db

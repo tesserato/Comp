@@ -1,0 +1,30 @@
+{
+  "name": "chordbook",
+  "displayName": "ChordBook Sheet Language",
+  "description": "Syntax highlighting and chordbook tooling for song sheets",
+  "version": "0.1.0",
+  "publisher": "chordbook",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "chordbook",
+        "aliases": ["ChordBook", "chordbook", "chord"],
+        "extensions": [".chord", ".chords", ".crd"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "chordbook",
+        "scopeName": "source.chordbook",
+        "path": "./syntaxes/chordbook.tmLanguage.json"
+      }
+    ]
+  }
+}
