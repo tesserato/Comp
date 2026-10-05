@@ -102,3 +102,29 @@ chordbook < song.chord > song.html
 - **`extension/package.json`**: Contributes the `chordbook` language ID (`.chord`, `.chords`, `.crd`).
 - **`extension/language-configuration.json`**: Comment and bracket auto-closing rules.
 - **`extension/syntaxes/chordbook.tmLanguage.json`**: TextMate grammar highlighting metadata, custom chord definitions (`chordname:xxxxxx`), section headers, and chord anatomy.
+
+
+---
+
+## 5. VS Code Syntax Highlighting Installation
+
+The repository includes a ready-to-use VS Code extension core in `extension/`.
+
+### Quick Install into VS Code:
+Run the following in PowerShell:
+```powershell
+Copy-Item -Recurse -Force "extension" "$env:USERPROFILE\.vscode\extensions\chordbook-0.1.0"
+```
+Or on Linux / macOS:
+```bash
+cp -r extension ~/.vscode/extensions/chordbook-0.1.0
+```
+
+Then **reload VS Code** (`Ctrl+Shift+P` -> `Developer: Reload Window`).
+
+Any `.chord`, `.chords`, or `.crd` file will now automatically highlight:
+- Metadata tags (`Title:`, `Artist:`, `Key:`)
+- Section markers (`[Intro]`, `[Verse 1]`, `== Chorus ==`)
+- Custom chord definitions (`D/F#:200232`)
+- Chord lines, chord roots (`A`–`G`), accidentals (`#`, `b`), qualities (`maj7`, `m9`, `sus4`), and slash bass notes
+- Comment lines (`#` and `//`)
