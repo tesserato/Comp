@@ -172,18 +172,20 @@ standardTuning = [4, 9, 2, 7, 11, 4] -- E A D G B e
 
 deriveVoicing :: Chord -> Maybe [Maybe Int]
 deriveVoicing chord =
-  let tones = chordPitchClasses chord
-      bassPc = maybe (notePitchClass (chordRoot chord)) notePitchClass (chordBass chord)
-      candidates = filter (isUsableVoicing tones bassPc) (allVoicings tones)
+  let rootPc = notePitchClass (chordRoot chord)
+      chordTones = chordPitchClasses chord
+      bassPc = maybe rootPc notePitchClass (chordBass chord)
+      allTones = nub (chordTones ++ [bassPc])
+      candidates = filter (isUsableVoicing allTones rootPc bassPc) (allVoicings allTones)
   in case candidates of
        [] -> Nothing
-       xs -> Just (minimumBy (comparing (voicingCost tones bassPc)) xs)
+       xs -> Just (minimumBy (comparing (voicingCost allTones bassPc)) xs)
 
 allVoicings :: [PitchClass] -> [[Maybe Int]]
 allVoicings tones =
   [ shape
   | shape <- sequence [stringOptions openPc tones | openPc <- standardTuning]
-  , countSounding shape >= 3
+  , countSounding shape >= 4
   , fretSpan shape <= 4
   ]
 
@@ -191,16 +193,38 @@ stringOptions :: PitchClass -> [PitchClass] -> [Maybe Int]
 stringOptions openPc tones =
   Nothing : [ Just fret | fret <- [0..12], ((openPc + fret) `mod` 12) `elem` tones ]
 
-isUsableVoicing :: [PitchClass] -> PitchClass -> [Maybe Int] -> Bool
-isUsableVoicing tones bassPc shape =
+hasImpossibleBarreWithOpen :: [Maybe Int] -> Bool
+hasImpossibleBarreWithOpen shape =
+  let fretted = [ (fret, str) | (str, Just fret) <- zip [0..5] shape, fret > 0 ]
+  in case fretted of
+       [] -> False
+       _  ->
+         let minFret = minimum (map fst fretted)
+             minNotes = filter (\(f, _) -> f == minFret) fretted
+         in if length minNotes >= 2
+            then
+              let minStr = minimum (map snd minNotes)
+                  maxStr = maximum (map snd minNotes)
+              in any (\s -> shape !! s == Just 0) [minStr .. maxStr]
+            else False
+
+requiredChordTones :: [PitchClass] -> PitchClass -> PitchClass -> [PitchClass]
+requiredChordTones allTones rootPc bassPc =
+  let baseTones = filter (/= bassPc) allTones
+  in if length baseTones <= 3
+     then allTones
+     else let perf5 = (rootPc + 7) `mod` 12
+          in filter (/= perf5) allTones
+
+isUsableVoicing :: [PitchClass] -> PitchClass -> PitchClass -> [Maybe Int] -> Bool
+isUsableVoicing tones rootPc bassPc shape =
   let pcs = soundingPitchClasses shape
-      required = requiredChordTones tones
-  in not (null pcs)
+      required = requiredChordTones tones rootPc bassPc
+  in not (hasImpossibleBarreWithOpen shape)
+     && not (null pcs)
      && lowestPitchClass shape == Just bassPc
      && all (`elem` pcs) required
-
-requiredChordTones :: [PitchClass] -> [PitchClass]
-requiredChordTones tones = take 3 tones
+     && countSounding shape >= 4
 
 soundingPitchClasses :: [Maybe Int] -> [PitchClass]
 soundingPitchClasses shape = nub
@@ -225,13 +249,37 @@ fretSpan shape =
 voicingCost :: [PitchClass] -> PitchClass -> [Maybe Int] -> Double
 voicingCost tones bassPc shape =
   let fretted = [ fret | Just fret <- shape, fret > 0 ]
-      mutedPenalty = fromIntegral (length [ () | Nothing <- shape ]) * 1.4
-      fretPenalty = fromIntegral (sum fretted) * 0.18
-      spanPenalty = fromIntegral (fretSpan shape) * 2.2
-      coverageBonus = fromIntegral (length (filter (`elem` soundingPitchClasses shape) tones)) * (-1.5)
-      bassBonus = if lowestPitchClass shape == Just bassPc then -8 else 20
-      fingerCost = resCost (solveOptimalFingering shape)
-  in mutedPenalty + fretPenalty + spanPenalty + coverageBonus + bassBonus + fingerCost
+      sounding = countSounding shape
+      maxFret = if null fretted then 0 else maximum fretted
+      minFret = if null fretted then 0 else minimum fretted
+
+      firstSounding = case [ idx | (idx, m) <- zip [0..5] shape, m /= Nothing ] of
+                        (i:_) -> i
+                        []    -> 0
+      trailingMutes = length [ () | m <- drop firstSounding shape, m == Nothing ]
+      internalMutePen = fromIntegral trailingMutes * 8.0
+      contiguousPen = fromIntegral (internalMuteCount shape) * 15.0
+
+      fullBarreBonus = if firstSounding == 0 && sounding == 6 then -4.0 else 0.0
+      fiveStringBonus = if firstSounding == 1 && sounding == 5 then -3.0 else 0.0
+
+      posPenalty = fromIntegral maxFret * 3.0 + (if minFret > 3 then fromIntegral minFret * 6.0 else 0.0)
+      spanPen = fromIntegral (fretSpan shape) * 3.0
+
+      expectedSounding = 6 - firstSounding
+      fullnessPen = fromIntegral (expectedSounding - sounding) * 4.0
+
+      pcs = soundingPitchClasses shape
+      covBonus = fromIntegral (length (filter (`elem` pcs) tones)) * (-2.0)
+      openBonus = fromIntegral (length [ () | Just 0 <- shape ]) * (-2.0)
+      bassBonus = if lowestPitchClass shape == Just bassPc then -10.0 else 30.0
+  in internalMutePen + contiguousPen + fullBarreBonus + fiveStringBonus + posPenalty + spanPen + fullnessPen + covBonus + openBonus + bassBonus
+
+internalMuteCount :: [Maybe Int] -> Int
+internalMuteCount shape =
+  case dropWhile (== Nothing) (reverse (dropWhile (== Nothing) shape)) of
+    []       -> 0
+    sounding -> length [ () | Nothing <- sounding ]
 
 notePitchClass :: (RootNote, Accidental) -> PitchClass
 notePitchClass (root, acc) = (rootBase root + accidentalOffset acc) `mod` 12

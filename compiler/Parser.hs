@@ -36,7 +36,7 @@ isHeaderLine line
   | isComment line = False
   | otherwise =
       case break (== ':') line of
-        (k, v) | not (null k) && not (null v) && not (isSpace (head k)) ->
+        (k@(c:_), v) | not (null v) && not (isSpace c) ->
           not (isPrefixOf "[" (trim k))
         _ -> False
 
@@ -98,6 +98,7 @@ parseMetaLine line
   | otherwise =
       case break (== ':') line of
         (k, ':':v) -> Just (trim k, trim v)
+        _          -> Nothing
 parseSections :: [String] -> [Section]
 parseSections rawLines =
   let cleanLines = dropWhile (all isSpace) rawLines

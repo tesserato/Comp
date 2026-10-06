@@ -54,15 +54,16 @@ function parseChord(chordName) {
   const quality = QUALITY_INTERVALS.find(([q]) => q === qualityText);
   if (rootPc === null || bassPc === null || !quality) return null;
   const tones = [...new Set(quality[1].map(i => (rootPc + i) % 12))];
-  return { tones, bassPc };
+  return { tones, rootPc, bassPc };
 }
 
 function deriveVoicing(chordName) {
   const chord = parseChord(chordName);
   if (!chord) return null;
-  const candidates = allVoicings(chord.tones).filter(shape => isUsableVoicing(chord.tones, chord.bassPc, shape));
+  const allTones = [...new Set([...chord.tones, chord.bassPc])];
+  const candidates = allVoicings(allTones).filter(shape => isUsableVoicing(allTones, chord.rootPc, chord.bassPc, shape));
   if (candidates.length === 0) return null;
-  candidates.sort((a, b) => voicingCost(chord.tones, chord.bassPc, a) - voicingCost(chord.tones, chord.bassPc, b));
+  candidates.sort((a, b) => voicingCost(allTones, chord.bassPc, a) - voicingCost(allTones, chord.bassPc, b));
   return candidates[0];
 }
 
@@ -79,13 +80,39 @@ function allVoicings(tones) {
     }
     shapes = next;
   }
-  return shapes.filter(shape => countSounding(shape) >= 3 && fretSpan(shape) <= 4);
+  return shapes.filter(shape => countSounding(shape) >= 4 && fretSpan(shape) <= 4);
 }
 
-function isUsableVoicing(tones, bassPc, shape) {
+function hasImpossibleBarreWithOpen(shape) {
+  const fretted = shape.map((f, i) => ({ fret: f, str: i })).filter(x => x.fret !== null && x.fret > 0);
+  if (fretted.length < 2) return false;
+  const minFret = Math.min(...fretted.map(x => x.fret));
+  const minFretNotes = fretted.filter(x => x.fret === minFret);
+  if (minFretNotes.length >= 2) {
+    const minStr = Math.min(...minFretNotes.map(x => x.str));
+    const maxStr = Math.max(...minFretNotes.map(x => x.str));
+    for (let s = minStr; s <= maxStr; s++) {
+      if (shape[s] === 0) return true;
+    }
+  }
+  return false;
+}
+
+function requiredChordTones(allTones, rootPc, bassPc) {
+  const baseTones = allTones.filter(pc => pc !== bassPc);
+  if (baseTones.length <= 3) return allTones;
+  const perf5 = (rootPc + 7) % 12;
+  return allTones.filter(pc => pc !== perf5);
+}
+
+function isUsableVoicing(tones, rootPc, bassPc, shape) {
+  if (hasImpossibleBarreWithOpen(shape)) return false;
   const pcs = soundingPitchClasses(shape);
-  const required = tones.slice(0, Math.min(3, tones.length));
-  return pcs.length > 0 && lowestPitchClass(shape) === bassPc && required.every(pc => pcs.includes(pc));
+  const required = requiredChordTones(tones, rootPc, bassPc);
+  return pcs.length > 0
+    && lowestPitchClass(shape) === bassPc
+    && required.every(pc => pcs.includes(pc))
+    && countSounding(shape) >= 4;
 }
 
 function soundingPitchClasses(shape) {
@@ -111,13 +138,38 @@ function fretSpan(shape) {
 
 function voicingCost(tones, bassPc, shape) {
   const fretted = shape.filter(f => f !== null && f > 0);
-  const mutedPenalty = shape.filter(f => f === null).length * 1.4;
-  const fretPenalty = fretted.reduce((a, b) => a + b, 0) * 0.18;
-  const spanPenalty = fretSpan(shape) * 2.2;
+  const sounding = countSounding(shape);
+  const maxFret = fretted.length > 0 ? Math.max(...fretted) : 0;
+  const minFret = fretted.length > 0 ? Math.min(...fretted) : 0;
+
+  const firstSounding = shape.findIndex(f => f !== null);
+  const trailingOrInternalMutes = shape.slice(firstSounding).filter(f => f === null).length;
+
+  const internalMutePenalty = trailingOrInternalMutes * 8.0;
+  const contiguousPenalty = internalMuteCount(shape) * 15.0;
+
+  const fullBarreBonus = (firstSounding === 0 && sounding === 6) ? -4.0 : 0.0;
+  const fiveStringBonus = (firstSounding === 1 && sounding === 5) ? -3.0 : 0.0;
+
+  const positionPenalty = maxFret * 3.0 + (minFret > 3 ? minFret * 6.0 : 0);
+  const spanPenalty = fretSpan(shape) * 3.0;
+
+  const expectedSounding = 6 - firstSounding;
+  const fullnessPenalty = (expectedSounding - sounding) * 4.0;
+
   const pcs = soundingPitchClasses(shape);
-  const coverageBonus = tones.filter(pc => pcs.includes(pc)).length * -1.5;
-  const bassBonus = lowestPitchClass(shape) === bassPc ? -8 : 20;
-  return mutedPenalty + fretPenalty + spanPenalty + coverageBonus + bassBonus;
+  const coverageBonus = tones.filter(pc => pcs.includes(pc)).length * -2.0;
+  const openBonus = shape.filter(f => f === 0).length * -2.0;
+  const bassBonus = lowestPitchClass(shape) === bassPc ? -10.0 : 30.0;
+
+  return internalMutePenalty + contiguousPenalty + fullBarreBonus + fiveStringBonus + positionPenalty + spanPenalty + fullnessPenalty + coverageBonus + openBonus + bassBonus;
+}
+
+function internalMuteCount(shape) {
+  const first = shape.findIndex(f => f !== null);
+  const last = shape.length - 1 - [...shape].reverse().findIndex(f => f !== null);
+  if (first < 0) return 0;
+  return shape.slice(first, last + 1).filter(f => f === null).length;
 }
 
 

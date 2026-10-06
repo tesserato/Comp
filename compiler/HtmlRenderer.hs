@@ -26,17 +26,6 @@ buildChordMap song =
               Nothing    -> Nothing
   in mapMaybe resolveChord usedChords
 
-collectSongChords :: Song -> [String]
-collectSongChords song =
-  concatMap collectSectionChords (songSections song)
-  where
-    collectSectionChords sec = concatMap collectItemChords (sectionItems sec)
-    collectItemChords (PairedLine syllables) =
-      [ name | ChordSyllable (Just (name, _)) _ <- syllables ]
-    collectItemChords (ChordOnlyLine chords) =
-      [ chordName pc | pc <- chords ]
-    collectItemChords _ = []
-
 collectSongPlacedChords :: Song -> [(String, Maybe Chord)]
 collectSongPlacedChords song =
   concatMap collectSectionPlacedChords (songSections song)

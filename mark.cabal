@@ -1,0 +1,25 @@
+cabal-version:      3.0
+name:               mark
+version:            0.1.0.0
+license:            MIT
+license-file:       LICENSE
+author:             Carlos
+maintainer:         Carlos
+build-type:         Simple
+
+executable chordbook
+  main-is:          Main.hs
+  hs-source-dirs:   compiler
+  other-modules:
+      AST
+      ChordValidator
+      CSS
+      Fingering
+      HtmlRenderer
+      Parser
+      SvgRenderer
+  build-depends:
+      base >=4.18 && <5
+    , parsec >=3.1 && <3.2
+  default-language: Haskell2010
+  ghc-options:      -Wall -O2
