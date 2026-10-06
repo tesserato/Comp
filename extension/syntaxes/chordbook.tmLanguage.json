@@ -14,7 +14,7 @@
       "patterns": [
         {
           "name": "comment.line.number-sign.chordbook",
-          "match": "(#|//).*$"
+          "match": "^\\s*(#|//).*$"
         }
       ]
     },
