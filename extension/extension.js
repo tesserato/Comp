@@ -216,12 +216,11 @@ function solveFingering(frets) {
 
 function renderHoverContent(chordName, frets) {
   const { fingers, barres, baseFret } = solveFingering(frets);
-  const stringNames = ['E', 'A', 'D', 'G', 'B', 'e'];
-  const headerSymbols = frets.map(f => f === null ? 'x' : f === 0 ? 'o' : ' ').join('   ');
+  const headerSymbols = frets.map(f => f === null ? ' x ' : f === 0 ? ' o ' : '   ').join(' ');
 
   let asciiGrid = `  ${chordName} Chord Diagram\n\n`;
-  asciiGrid += `   ${headerSymbols}\n`;
-  asciiGrid += `  ${baseFret === 1 ? '==+===+===+===+===+==' : '--+---+---+---+---+--'}\n`;
+  asciiGrid += `  ${headerSymbols}\n`;
+  asciiGrid += `  ${baseFret === 1 ? '===+===+===+===+===+===' : '---+---+---+---+---+---'}\n`;
 
   const numFrets = 4;
   for (let f = 0; f < numFrets; f++) {
@@ -251,18 +250,11 @@ function renderHoverContent(chordName, frets) {
   }
 
   const fretStr = frets.map(f => f === null ? 'x' : f.toString()).join('');
-  const fingerSummary = fingers.map((f, i) => {
-    if (frets[i] === null) return `${stringNames[i]}: muted`;
-    if (frets[i] === 0) return `${stringNames[i]}: open`;
-    const fNames = ['', 'Index', 'Middle', 'Ring', 'Pinky'];
-    return `${stringNames[i]}: fret ${frets[i]} (${fNames[f] || 'finger ' + f})`;
-  }).join(' | ');
 
   const md = new vscode.MarkdownString();
   md.isTrusted = true;
   md.appendMarkdown(`### **${chordName}** \`[${fretStr}]\`\n\n`);
   md.appendCodeblock(asciiGrid, 'text');
-  md.appendMarkdown(`\n**Fingering:** ${fingerSummary}\n`);
   return md;
 }
 
