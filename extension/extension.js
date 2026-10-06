@@ -218,8 +218,7 @@ function renderHoverContent(chordName, frets) {
   const { fingers, barres, baseFret } = solveFingering(frets);
   const headerSymbols = frets.map(f => f === null ? ' x ' : f === 0 ? ' o ' : '   ').join(' ');
 
-  let asciiGrid = `  ${chordName} Chord Diagram\n\n`;
-  asciiGrid += `  ${headerSymbols}\n`;
+  let asciiGrid = `  ${headerSymbols}\n`;
   asciiGrid += `  ${baseFret === 1 ? '===+===+===+===+===+===' : '---+---+---+---+---+---'}\n`;
 
   const numFrets = 4;
