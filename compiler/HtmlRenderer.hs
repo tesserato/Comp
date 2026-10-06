@@ -192,14 +192,17 @@ renderChordWithHover chordMap name isValid =
 renderChordPalette :: ChordMap -> String
 renderChordPalette [] = ""
 renderChordPalette chordMap = unlines $
-  [ "      <div class=\"song-chords-palette\">"
-  , "        <div class=\"palette-title\">Chords in this song</div>"
+  [ "      <details class=\"song-chords-palette\" open>"
+  , "        <summary class=\"palette-title\">"
+  , "          <span>Chords in this song</span>"
+  , "          <span class=\"palette-toggle-icon\" aria-hidden=\"true\">&#9662;</span>"
+  , "        </summary>"
   , "        <div class=\"palette-grid\">"
   ] ++
   [ "          <div class=\"palette-item\">" ++ renderChordSvg name diag ++ "</div>"
   | (name, diag) <- chordMap
   ] ++
   [ "        </div>"
-  , "      </div>"
+  , "      </details>"
   ]
 

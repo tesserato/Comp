@@ -188,7 +188,7 @@ function solveFingering(frets) {
 
   const minFret = Math.min(...pts.map(p => p.fret));
   const maxFret = Math.max(...pts.map(p => p.fret));
-  const baseFret = maxFret <= 4 ? 1 : minFret;
+  const baseFret = maxFret <= 5 ? 1 : minFret;
 
   const barreNotes = pts.filter(p => p.fret === minFret);
   const otherNotes = pts.filter(p => p.fret > minFret).sort((a, b) => a.fret - b.fret);
@@ -221,7 +221,7 @@ function renderHoverContent(chordName, frets) {
   let asciiGrid = `  ${headerSymbols}\n`;
   asciiGrid += `  ${baseFret === 1 ? '===+===+===+===+===+===' : '---+---+---+---+---+---'}\n`;
 
-  const numFrets = 4;
+  const numFrets = 5;
   for (let f = 0; f < numFrets; f++) {
     const currentFret = baseFret + f;
     let row = '';

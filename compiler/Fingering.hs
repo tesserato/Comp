@@ -38,7 +38,7 @@ solveOptimalFingering frets =
                       ]
       minFret = if null frettedPoints then 1 else minimum (map fpFret frettedPoints)
       maxFret = if null frettedPoints then 1 else maximum (map fpFret frettedPoints)
-      baseFret = if maxFret <= 4 then 1 else minFret
+      baseFret = if maxFret <= 5 then 1 else minFret
   in if null frettedPoints
      then FingeringResult (replicate 6 Nothing) [] 1 0.0
      else
