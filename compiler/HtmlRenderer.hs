@@ -2,7 +2,7 @@ module HtmlRenderer (generateHtml) where
 
 import AST
 import CSS (cssStyles, themeScript)
-import Fingering (solveChordDiagram, defaultChordLibrary)
+import Fingering (solveChordDiagram, deriveChordDiagram)
 import SvgRenderer (renderChordSvg)
 import Data.Char (toLower)
 import Data.List (nub)
@@ -12,17 +12,19 @@ type ChordMap = [(String, ChordDiagram)]
 
 buildChordMap :: Song -> ChordMap
 buildChordMap song =
-  let usedChordNames = nub (collectSongChords song)
+  let usedChords = nub (collectSongPlacedChords song)
       customs = songCustomChords song
-      resolveChord name =
+      resolveChord (name, parsed) =
         case lookup name customs of
           Just (FretDef frets) ->
             Just (name, solveChordDiagram frets)
           Nothing ->
-            case lookup name defaultChordLibrary of
-              Just frets -> Just (name, solveChordDiagram frets)
+            case parsed of
+              Just chord -> case deriveChordDiagram chord of
+                Just diagram -> Just (name, diagram)
+                Nothing      -> Nothing
               Nothing    -> Nothing
-  in mapMaybe resolveChord usedChordNames
+  in mapMaybe resolveChord usedChords
 
 collectSongChords :: Song -> [String]
 collectSongChords song =
@@ -34,6 +36,17 @@ collectSongChords song =
     collectItemChords (ChordOnlyLine chords) =
       [ chordName pc | pc <- chords ]
     collectItemChords _ = []
+
+collectSongPlacedChords :: Song -> [(String, Maybe Chord)]
+collectSongPlacedChords song =
+  concatMap collectSectionPlacedChords (songSections song)
+  where
+    collectSectionPlacedChords sec = concatMap collectItemPlacedChords (sectionItems sec)
+    collectItemPlacedChords (PairedLine syllables) =
+      [ (name, parsed) | ChordSyllable (Just (name, parsed)) _ <- syllables ]
+    collectItemPlacedChords (ChordOnlyLine chords) =
+      [ (chordName pc, chordParsed pc) | pc <- chords ]
+    collectItemPlacedChords _ = []
 
 escapeHtml :: String -> String
 escapeHtml [] = []

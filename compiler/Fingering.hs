@@ -2,7 +2,7 @@ module Fingering
   ( FingeringResult(..)
   , solveOptimalFingering
   , solveChordDiagram
-  , defaultChordLibrary
+  , deriveChordDiagram
   ) where
 
 import AST
@@ -162,46 +162,119 @@ solveChordDiagram frets =
   let res = solveOptimalFingering frets
   in ChordDiagram frets (resFingers res) (resBarres res) (resBaseFret res)
 
+deriveChordDiagram :: Chord -> Maybe ChordDiagram
+deriveChordDiagram chord = solveChordDiagram <$> deriveVoicing chord
 
-defaultChordLibrary :: [(String, [Maybe Int])]
-defaultChordLibrary =
-  [ ("C",      [Nothing, Just 3, Just 2, Just 0, Just 1, Just 0])
-  , ("Cmaj7",  [Nothing, Just 3, Just 2, Just 0, Just 0, Just 0])
-  , ("C7",     [Nothing, Just 3, Just 2, Just 3, Just 1, Just 0])
-  , ("Cm",     [Nothing, Just 3, Just 5, Just 5, Just 4, Just 3])
-  , ("Cm7",    [Nothing, Just 3, Just 5, Just 3, Just 4, Just 3])
-  , ("D",      [Nothing, Nothing, Just 0, Just 2, Just 3, Just 2])
-  , ("Dm",     [Nothing, Nothing, Just 0, Just 2, Just 3, Just 1])
-  , ("D7",     [Nothing, Nothing, Just 0, Just 2, Just 1, Just 2])
-  , ("Dmaj7",  [Nothing, Nothing, Just 0, Just 2, Just 2, Just 2])
-  , ("Dsus2",  [Nothing, Nothing, Just 0, Just 2, Just 3, Just 0])
-  , ("Dsus4",  [Nothing, Nothing, Just 0, Just 2, Just 3, Just 3])
-  , ("E",      [Just 0, Just 2, Just 2, Just 1, Just 0, Just 0])
-  , ("Em",     [Just 0, Just 2, Just 2, Just 0, Just 0, Just 0])
-  , ("E7",     [Just 0, Just 2, Just 0, Just 1, Just 0, Just 0])
-  , ("Em7",    [Just 0, Just 2, Just 2, Just 0, Just 3, Just 0])
-  , ("Esus4",  [Just 0, Just 2, Just 2, Just 2, Just 0, Just 0])
-  , ("F",      [Just 1, Just 3, Just 3, Just 2, Just 1, Just 1])
-  , ("Fm",     [Just 1, Just 3, Just 3, Just 1, Just 1, Just 1])
-  , ("Fmaj7",  [Nothing, Nothing, Just 3, Just 2, Just 1, Just 0])
-  , ("F#",     [Just 2, Just 4, Just 4, Just 3, Just 2, Just 2])
-  , ("F#m",    [Just 2, Just 4, Just 4, Just 2, Just 2, Just 2])
-  , ("F#7",    [Just 2, Just 4, Just 2, Just 3, Just 2, Just 2])
-  , ("G",      [Just 3, Just 2, Just 0, Just 0, Just 0, Just 3])
-  , ("Gm",     [Just 3, Just 5, Just 5, Just 3, Just 3, Just 3])
-  , ("G7",     [Just 3, Just 2, Just 0, Just 0, Just 0, Just 1])
-  , ("Gsus4",  [Just 3, Just 2, Just 0, Just 0, Just 1, Just 3])
-  , ("A",      [Nothing, Just 0, Just 2, Just 2, Just 2, Just 0])
-  , ("Am",     [Nothing, Just 0, Just 2, Just 2, Just 1, Just 0])
-  , ("A7",     [Nothing, Just 0, Just 2, Just 0, Just 2, Just 0])
-  , ("Am7",    [Nothing, Just 0, Just 2, Just 0, Just 1, Just 0])
-  , ("Amaj7",  [Nothing, Just 0, Just 2, Just 1, Just 2, Just 0])
-  , ("Asus2",  [Nothing, Just 0, Just 2, Just 2, Just 0, Just 0])
-  , ("Asus4",  [Nothing, Just 0, Just 2, Just 2, Just 3, Just 0])
-  , ("B",      [Nothing, Just 2, Just 4, Just 4, Just 4, Just 2])
-  , ("Bm",     [Nothing, Just 2, Just 4, Just 4, Just 3, Just 2])
-  , ("B7",     [Nothing, Just 2, Just 1, Just 2, Just 0, Just 2])
-  , ("Bm7",    [Nothing, Just 2, Just 4, Just 2, Just 3, Just 2])
-  , ("Bb",     [Nothing, Just 1, Just 3, Just 3, Just 3, Just 1])
-  , ("Bbm",    [Nothing, Just 1, Just 3, Just 3, Just 2, Just 1])
+type PitchClass = Int
+
+standardTuning :: [PitchClass]
+standardTuning = [4, 9, 2, 7, 11, 4] -- E A D G B e
+
+deriveVoicing :: Chord -> Maybe [Maybe Int]
+deriveVoicing chord =
+  let tones = chordPitchClasses chord
+      bassPc = maybe (notePitchClass (chordRoot chord)) notePitchClass (chordBass chord)
+      candidates = filter (isUsableVoicing tones bassPc) (allVoicings tones)
+  in case candidates of
+       [] -> Nothing
+       xs -> Just (minimumBy (comparing (voicingCost tones bassPc)) xs)
+
+allVoicings :: [PitchClass] -> [[Maybe Int]]
+allVoicings tones =
+  [ shape
+  | shape <- sequence [stringOptions openPc tones | openPc <- standardTuning]
+  , countSounding shape >= 3
+  , fretSpan shape <= 4
   ]
+
+stringOptions :: PitchClass -> [PitchClass] -> [Maybe Int]
+stringOptions openPc tones =
+  Nothing : [ Just fret | fret <- [0..12], ((openPc + fret) `mod` 12) `elem` tones ]
+
+isUsableVoicing :: [PitchClass] -> PitchClass -> [Maybe Int] -> Bool
+isUsableVoicing tones bassPc shape =
+  let pcs = soundingPitchClasses shape
+      required = requiredChordTones tones
+  in not (null pcs)
+     && lowestPitchClass shape == Just bassPc
+     && all (`elem` pcs) required
+
+requiredChordTones :: [PitchClass] -> [PitchClass]
+requiredChordTones tones = take 3 tones
+
+soundingPitchClasses :: [Maybe Int] -> [PitchClass]
+soundingPitchClasses shape = nub
+  [ (openPc + fret) `mod` 12
+  | (openPc, Just fret) <- zip standardTuning shape
+  ]
+
+lowestPitchClass :: [Maybe Int] -> Maybe PitchClass
+lowestPitchClass shape = case [ (openPc + fret) `mod` 12 | (openPc, Just fret) <- zip standardTuning shape ] of
+  []    -> Nothing
+  pc:_  -> Just pc
+
+countSounding :: [Maybe Int] -> Int
+countSounding = length . filter (/= Nothing)
+
+fretSpan :: [Maybe Int] -> Int
+fretSpan shape =
+  case [ fret | Just fret <- shape, fret > 0 ] of
+    [] -> 0
+    fs -> maximum fs - minimum fs
+
+voicingCost :: [PitchClass] -> PitchClass -> [Maybe Int] -> Double
+voicingCost tones bassPc shape =
+  let fretted = [ fret | Just fret <- shape, fret > 0 ]
+      mutedPenalty = fromIntegral (length [ () | Nothing <- shape ]) * 1.4
+      fretPenalty = fromIntegral (sum fretted) * 0.18
+      spanPenalty = fromIntegral (fretSpan shape) * 2.2
+      coverageBonus = fromIntegral (length (filter (`elem` soundingPitchClasses shape) tones)) * (-1.5)
+      bassBonus = if lowestPitchClass shape == Just bassPc then -8 else 20
+      fingerCost = resCost (solveOptimalFingering shape)
+  in mutedPenalty + fretPenalty + spanPenalty + coverageBonus + bassBonus + fingerCost
+
+notePitchClass :: (RootNote, Accidental) -> PitchClass
+notePitchClass (root, acc) = (rootBase root + accidentalOffset acc) `mod` 12
+  where
+    rootBase C = 0
+    rootBase D = 2
+    rootBase E = 4
+    rootBase F = 5
+    rootBase G = 7
+    rootBase A = 9
+    rootBase B = 11
+    accidentalOffset Natural = 0
+    accidentalOffset Sharp = 1
+    accidentalOffset Flat = -1
+
+chordPitchClasses :: Chord -> [PitchClass]
+chordPitchClasses chord =
+  let root = notePitchClass (chordRoot chord)
+  in nub [ (root + i) `mod` 12 | i <- qualityIntervals (chordQuality chord) ]
+
+qualityIntervals :: ChordQuality -> [Int]
+qualityIntervals Major = [0,4,7]
+qualityIntervals Minor = [0,3,7]
+qualityIntervals Dominant7 = [0,4,7,10]
+qualityIntervals Major7 = [0,4,7,11]
+qualityIntervals Minor7 = [0,3,7,10]
+qualityIntervals Diminished = [0,3,6]
+qualityIntervals Diminished7 = [0,3,6,9]
+qualityIntervals HalfDiminished = [0,3,6,10]
+qualityIntervals Augmented = [0,4,8]
+qualityIntervals Augmented7 = [0,4,8,10]
+qualityIntervals Sus2 = [0,2,7]
+qualityIntervals Sus4 = [0,5,7]
+qualityIntervals Sus24 = [0,2,5,7]
+qualityIntervals SevenSus4 = [0,5,7,10]
+qualityIntervals Add9 = [0,4,7,14]
+qualityIntervals Add2 = [0,2,4,7]
+qualityIntervals Add11 = [0,4,7,17]
+qualityIntervals Sixth = [0,4,7,9]
+qualityIntervals Minor6 = [0,3,7,9]
+qualityIntervals Ninth = [0,4,7,10,14]
+qualityIntervals Major9 = [0,4,7,11,14]
+qualityIntervals Minor9 = [0,3,7,10,14]
+qualityIntervals Eleventh = [0,4,7,10,14,17]
+qualityIntervals Thirteenth = [0,4,7,10,14,21]
+qualityIntervals PowerChord = [0,7]

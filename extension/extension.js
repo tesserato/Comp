@@ -1,46 +1,125 @@
 const vscode = require('vscode');
 
-const CHORD_LIBRARY = {
-  'C':      [null, 3, 2, 0, 1, 0],
-  'Cmaj7':  [null, 3, 2, 0, 0, 0],
-  'C7':     [null, 3, 2, 3, 1, 0],
-  'Cm':     [null, 3, 5, 5, 4, 3],
-  'Cm7':    [null, 3, 5, 3, 4, 3],
-  'D':      [null, null, 0, 2, 3, 2],
-  'Dm':     [null, null, 0, 2, 3, 1],
-  'D7':     [null, null, 0, 2, 1, 2],
-  'Dmaj7':  [null, null, 0, 2, 2, 2],
-  'Dsus2':  [null, null, 0, 2, 3, 0],
-  'Dsus4':  [null, null, 0, 2, 3, 3],
-  'E':      [0, 2, 2, 1, 0, 0],
-  'Em':     [0, 2, 2, 0, 0, 0],
-  'E7':     [0, 2, 0, 1, 0, 0],
-  'Em7':    [0, 2, 2, 0, 3, 0],
-  'Esus4':  [0, 2, 2, 2, 0, 0],
-  'F':      [1, 3, 3, 2, 1, 1],
-  'Fm':     [1, 3, 3, 1, 1, 1],
-  'Fmaj7':  [null, null, 3, 2, 1, 0],
-  'F#':     [2, 4, 4, 3, 2, 2],
-  'F#m':    [2, 4, 4, 2, 2, 2],
-  'F#7':    [2, 4, 2, 3, 2, 2],
-  'G':      [3, 2, 0, 0, 0, 3],
-  'Gm':     [3, 5, 5, 3, 3, 3],
-  'G7':     [3, 2, 0, 0, 0, 1],
-  'Gsus4':  [3, 2, 0, 0, 1, 3],
-  'A':      [null, 0, 2, 2, 2, 0],
-  'Am':     [null, 0, 2, 2, 1, 0],
-  'A7':     [null, 0, 2, 0, 2, 0],
-  'Am7':    [null, 0, 2, 0, 1, 0],
-  'Amaj7':  [null, 0, 2, 1, 2, 0],
-  'Asus2':  [null, 0, 2, 2, 0, 0],
-  'Asus4':  [null, 0, 2, 2, 3, 0],
-  'B':      [null, 2, 4, 4, 4, 2],
-  'Bm':     [null, 2, 4, 4, 3, 2],
-  'B7':     [null, 2, 1, 2, 0, 2],
-  'Bm7':    [null, 2, 4, 2, 3, 2],
-  'Bb':     [null, 1, 3, 3, 3, 1],
-  'Bbm':    [null, 1, 3, 3, 2, 1]
-};
+const ROOT_PITCH = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+const STANDARD_TUNING = [4, 9, 2, 7, 11, 4]; // E A D G B e
+const QUALITY_INTERVALS = [
+  ['maj9', [0, 4, 7, 11, 14]],
+  ['maj7', [0, 4, 7, 11]],
+  ['maj', [0, 4, 7]],
+  ['min9', [0, 3, 7, 10, 14]],
+  ['min7', [0, 3, 7, 10]],
+  ['min', [0, 3, 7]],
+  ['m9', [0, 3, 7, 10, 14]],
+  ['m7b5', [0, 3, 6, 10]],
+  ['m7', [0, 3, 7, 10]],
+  ['m6', [0, 3, 7, 9]],
+  ['m', [0, 3, 7]],
+  ['7sus4', [0, 5, 7, 10]],
+  ['sus4', [0, 5, 7]],
+  ['sus2', [0, 2, 7]],
+  ['sus', [0, 5, 7]],
+  ['dim7', [0, 3, 6, 9]],
+  ['dim', [0, 3, 6]],
+  ['aug7', [0, 4, 8, 10]],
+  ['aug', [0, 4, 8]],
+  ['add11', [0, 4, 7, 17]],
+  ['add9', [0, 4, 7, 14]],
+  ['add2', [0, 2, 4, 7]],
+  ['13', [0, 4, 7, 10, 14, 21]],
+  ['11', [0, 4, 7, 10, 14, 17]],
+  ['9', [0, 4, 7, 10, 14]],
+  ['7', [0, 4, 7, 10]],
+  ['6', [0, 4, 7, 9]],
+  ['5', [0, 7]],
+  ['+', [0, 4, 8]],
+  ['o', [0, 3, 6]],
+  ['ø', [0, 3, 6, 10]],
+  ['Δ', [0, 4, 7, 11]],
+  ['', [0, 4, 7]]
+];
+
+function pitchClass(note) {
+  const m = /^([A-G])([b#♯♭]?)$/.exec(note);
+  if (!m) return null;
+  const accidental = m[2] === '#' || m[2] === '♯' ? 1 : (m[2] === 'b' || m[2] === '♭' ? -1 : 0);
+  return (ROOT_PITCH[m[1]] + accidental + 12) % 12;
+}
+
+function parseChord(chordName) {
+  const m = /^([A-G][b#♯♭]?)(.*?)(?:\/([A-G][b#♯♭]?))?$/.exec(chordName);
+  if (!m) return null;
+  const rootPc = pitchClass(m[1]);
+  const qualityText = m[2] || '';
+  const bassPc = m[3] ? pitchClass(m[3]) : rootPc;
+  const quality = QUALITY_INTERVALS.find(([q]) => q === qualityText);
+  if (rootPc === null || bassPc === null || !quality) return null;
+  const tones = [...new Set(quality[1].map(i => (rootPc + i) % 12))];
+  return { tones, bassPc };
+}
+
+function deriveVoicing(chordName) {
+  const chord = parseChord(chordName);
+  if (!chord) return null;
+  const candidates = allVoicings(chord.tones).filter(shape => isUsableVoicing(chord.tones, chord.bassPc, shape));
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => voicingCost(chord.tones, chord.bassPc, a) - voicingCost(chord.tones, chord.bassPc, b));
+  return candidates[0];
+}
+
+function allVoicings(tones) {
+  let shapes = [[]];
+  for (const openPc of STANDARD_TUNING) {
+    const options = [null];
+    for (let fret = 0; fret <= 12; fret++) {
+      if (tones.includes((openPc + fret) % 12)) options.push(fret);
+    }
+    const next = [];
+    for (const prefix of shapes) {
+      for (const opt of options) next.push([...prefix, opt]);
+    }
+    shapes = next;
+  }
+  return shapes.filter(shape => countSounding(shape) >= 3 && fretSpan(shape) <= 4);
+}
+
+function isUsableVoicing(tones, bassPc, shape) {
+  const pcs = soundingPitchClasses(shape);
+  const required = tones.slice(0, Math.min(3, tones.length));
+  return pcs.length > 0 && lowestPitchClass(shape) === bassPc && required.every(pc => pcs.includes(pc));
+}
+
+function soundingPitchClasses(shape) {
+  return [...new Set(shape.flatMap((fret, i) => fret === null ? [] : [(STANDARD_TUNING[i] + fret) % 12]))];
+}
+
+function lowestPitchClass(shape) {
+  for (let i = 0; i < shape.length; i++) {
+    if (shape[i] !== null) return (STANDARD_TUNING[i] + shape[i]) % 12;
+  }
+  return null;
+}
+
+function countSounding(shape) {
+  return shape.filter(f => f !== null).length;
+}
+
+function fretSpan(shape) {
+  const fretted = shape.filter(f => f !== null && f > 0);
+  if (fretted.length === 0) return 0;
+  return Math.max(...fretted) - Math.min(...fretted);
+}
+
+function voicingCost(tones, bassPc, shape) {
+  const fretted = shape.filter(f => f !== null && f > 0);
+  const mutedPenalty = shape.filter(f => f === null).length * 1.4;
+  const fretPenalty = fretted.reduce((a, b) => a + b, 0) * 0.18;
+  const spanPenalty = fretSpan(shape) * 2.2;
+  const pcs = soundingPitchClasses(shape);
+  const coverageBonus = tones.filter(pc => pcs.includes(pc)).length * -1.5;
+  const bassBonus = lowestPitchClass(shape) === bassPc ? -8 : 20;
+  return mutedPenalty + fretPenalty + spanPenalty + coverageBonus + bassBonus;
+}
+
 
 function solveFingering(frets) {
   const pts = [];
@@ -231,7 +310,7 @@ function activate(context) {
       const customChords = findCustomChords(document);
       let frets = customChords.get(matchedChord);
       if (!frets) {
-        frets = CHORD_LIBRARY[matchedChord];
+        frets = deriveVoicing(matchedChord);
       }
 
       if (frets) {
