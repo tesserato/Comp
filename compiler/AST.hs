@@ -16,6 +16,7 @@ data SectionItem
   | ChordOnlyLine [PlacedChord]
   | LyricOnlyLine String
   | CommentLine String
+  | ChordPaletteItem
   deriving (Show, Eq)
 
 data PlacedChord = PlacedChord

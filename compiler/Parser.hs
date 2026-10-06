@@ -5,8 +5,8 @@ module Parser
 
 import AST
 import ChordValidator (isChordLine, locateChords)
-import Data.Char (isDigit, isSpace, toUpper)
-import Data.List (dropWhileEnd, isPrefixOf)
+import Data.Char (isDigit, isSpace, toLower, toUpper)
+import Data.List (dropWhileEnd, isPrefixOf, isSuffixOf)
 import Data.Maybe (mapMaybe)
 
 parseSongSheet :: String -> Song
@@ -33,7 +33,7 @@ spanHeader = go []
 
 isHeaderLine :: String -> Bool
 isHeaderLine line
-  | isComment line = False
+  | isComment line || isChordsKeyword line = False
   | otherwise =
       case break (== ':') line of
         (k@(c:_), v) | not (null v) && not (isSpace c) ->
@@ -117,17 +117,34 @@ extractSectionHeader l =
      then drop 1 (dropWhileEnd (== ']') s)
      else trim (filter (/= '=') s)
 
+isChordsKeyword :: String -> Bool
+isChordsKeyword l =
+  let s = map toLower (trim l)
+      clean = filter (`notElem` "{}[]:#@_ -\"'") s
+      isDirective = (isPrefixOf "{" s && isSuffixOf "}" s)
+                 || (isPrefixOf "[" s && isSuffixOf "]" s)
+                 || isPrefixOf ":" s
+                 || isSuffixOf ":" s
+                 || isPrefixOf "@" s
+                 || s == "chords"
+                 || s == "diagrams"
+  in isDirective && clean `elem` ["chords", "diagrams", "chordsinthissong", "songchords", "palette"]
+
 groupIntoSections :: [String] -> [Section]
 groupIntoSections [] = []
 groupIntoSections (l:ls)
   | all isSpace l = groupIntoSections ls
+  | isChordsKeyword l =
+      Section Nothing [ChordPaletteItem] : groupIntoSections ls
   | isSectionHeader l =
       let name = extractSectionHeader l
-          (body, rest) = span (not . isSectionHeader) ls
+          (body, rest) = span (\x -> not (isSectionHeader x || isChordsKeyword x)) ls
           items = parseSectionBody body
-      in Section (Just name) items : groupIntoSections rest
+      in if isChordsKeyword l || isChordsKeyword name
+         then Section (Just name) [ChordPaletteItem] : groupIntoSections rest
+         else Section (Just name) items : groupIntoSections rest
   | otherwise =
-      let (body, rest) = span (not . isSectionHeader) (l:ls)
+      let (body, rest) = span (\x -> not (isSectionHeader x || isChordsKeyword x)) (l:ls)
           items = parseSectionBody body
       in Section Nothing items : groupIntoSections rest
 
@@ -136,7 +153,8 @@ parseSectionBody [] = []
 parseSectionBody (l1:l2:rest)
   | all isSpace l1 = parseSectionBody (l2:rest)
   | isComment l1   = CommentLine (trim (dropCommentMarker l1)) : parseSectionBody (l2:rest)
-  | isChordLine l1 && not (isChordLine l2) && not (all isSpace l2) && not (isComment l2) =
+  | isChordsKeyword l1 = ChordPaletteItem : parseSectionBody (l2:rest)
+  | isChordLine l1 && not (isChordLine l2) && not (all isSpace l2) && not (isComment l2) && not (isChordsKeyword l2) =
       PairedLine (alignChordsAndLyrics l1 l2) : parseSectionBody rest
   | isChordLine l1 =
       ChordOnlyLine (locateChords l1) : parseSectionBody (l2:rest)
@@ -145,6 +163,7 @@ parseSectionBody (l1:l2:rest)
 parseSectionBody [l]
   | all isSpace l = []
   | isComment l   = [CommentLine (trim (dropCommentMarker l))]
+  | isChordsKeyword l = [ChordPaletteItem]
   | isChordLine l = [ChordOnlyLine (locateChords l)]
   | otherwise     = [LyricOnlyLine l]
 

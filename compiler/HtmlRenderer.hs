@@ -4,7 +4,7 @@ import AST
 import CSS (cssStyles, themeScript)
 import Fingering (solveChordDiagram, deriveChordDiagram)
 import SvgRenderer (renderChordSvg)
-import Data.Char (toLower)
+import Data.Char (isSpace, toLower)
 import Data.List (nub)
 import Data.Maybe (mapMaybe)
 
@@ -70,7 +70,6 @@ generateHtml song =
     , "    </button>"
     , renderHeader song
     , renderBody song chordMap
-    , renderChordPalette chordMap
     , "  </main>"
     , "</body>"
     , "</html>"
@@ -123,16 +122,22 @@ renderBody song chordMap = unlines $
   [ "    </section>" ]
 
 renderSection :: ChordMap -> Section -> String
-renderSection chordMap (Section mName items) = unlines $
-  [ "      <div class=\"song-section\">" ] ++
-  (case mName of
-     Just name -> [ "        <h2 class=\"section-title\">" ++ escapeHtml name ++ "</h2>" ]
-     Nothing   -> []) ++
-  [ "        <div class=\"section-lines\">" ] ++
-  map (renderItem chordMap) items ++
-  [ "        </div>"
-  , "      </div>"
-  ]
+renderSection chordMap (Section Nothing [ChordPaletteItem]) =
+  renderChordPalette chordMap
+renderSection chordMap (Section mName items) =
+  let renderedItems = filter (not . all isSpace) (map (renderItem chordMap) items)
+  in if null renderedItems
+     then ""
+     else unlines $
+       [ "      <div class=\"song-section\">" ] ++
+       (case mName of
+          Just name -> [ "        <h2 class=\"section-title\">" ++ escapeHtml name ++ "</h2>" ]
+          Nothing   -> []) ++
+       [ "        <div class=\"section-lines\">" ] ++
+       renderedItems ++
+       [ "        </div>"
+       , "      </div>"
+       ]
 
 renderItem :: ChordMap -> SectionItem -> String
 renderItem chordMap (PairedLine syllables) =
@@ -146,6 +151,8 @@ renderItem chordMap (ChordOnlyLine chords) =
 renderItem _ (LyricOnlyLine lyric) =
   "          <div class=\"lyric-only-row\">" ++ escapeHtml lyric ++ "</div>"
 renderItem _ (CommentLine _) = ""
+renderItem chordMap ChordPaletteItem =
+  renderChordPalette chordMap
 
 renderSyllable :: ChordMap -> ChordSyllable -> String
 renderSyllable chordMap (ChordSyllable mChord lyric) =
@@ -174,14 +181,14 @@ renderChordWithHover chordMap name isValid =
 renderChordPalette :: ChordMap -> String
 renderChordPalette [] = ""
 renderChordPalette chordMap = unlines $
-  [ "    <footer class=\"song-chords-palette\">"
-  , "      <div class=\"palette-title\">Chords in this song</div>"
-  , "      <div class=\"palette-grid\">"
+  [ "      <div class=\"song-chords-palette\">"
+  , "        <div class=\"palette-title\">Chords in this song</div>"
+  , "        <div class=\"palette-grid\">"
   ] ++
-  [ "        <div class=\"palette-item\">" ++ renderChordSvg name diag ++ "</div>"
+  [ "          <div class=\"palette-item\">" ++ renderChordSvg name diag ++ "</div>"
   | (name, diag) <- chordMap
   ] ++
-  [ "      </div>"
-  , "    </footer>"
+  [ "        </div>"
+  , "      </div>"
   ]
 

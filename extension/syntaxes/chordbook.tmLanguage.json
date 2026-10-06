@@ -4,12 +4,21 @@
   "scopeName": "source.chordbook",
   "patterns": [
     { "include": "#comments" },
+    { "include": "#chords-directive" },
     { "include": "#custom-chord-defs" },
     { "include": "#metadata" },
     { "include": "#sections" },
     { "include": "#chord-lines" }
   ],
   "repository": {
+    "chords-directive": {
+      "patterns": [
+        {
+          "name": "keyword.control.directive.chords.chordbook",
+          "match": "^\\s*(\\{|\\[)?(?i)(chords|diagrams|chords[\\s_-]+in[\\s_-]+this[\\s_-]+song)(\\}|\\]|:)?\\s*$"
+        }
+      ]
+    },
     "comments": {
       "patterns": [
         {

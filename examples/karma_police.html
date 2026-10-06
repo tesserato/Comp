@@ -17,6 +17,16 @@ function toggleTheme(){
   el.setAttribute('data-theme',next);
   try{localStorage.setItem('chordbook-theme',next);}catch(e){}
 }
+document.addEventListener('click',function(e){
+  var target=e.target.closest('.chord-with-hover');
+  var all=document.querySelectorAll('.chord-with-hover.active-popover');
+  for(var i=0;i<all.length;i++){
+    if(all[i]!==target) all[i].classList.remove('active-popover');
+  }
+  if(target){
+    target.classList.toggle('active-popover');
+  }
+});
 
   </script>
   <style>
@@ -56,18 +66,18 @@ function toggleTheme(){
       color: var(--ink);
       font-family: var(--sans);
       line-height: 1.6;
-      padding: 4rem 1.5rem;
+      padding: 2.5rem 2rem;
       display: flex;
       justify-content: center;
       transition: background .25s ease, color .25s ease;
     }
     .sheet {
       width: 100%;
-      max-width: 46rem;
+      max-width: 125rem;
       background: var(--paper);
       border: 1px solid var(--line);
-      border-radius: 4px;
-      padding: 4rem 4.5rem 3.5rem;
+      border-radius: 6px;
+      padding: 3.5rem 3.5rem 3rem;
       box-shadow: 0 18px 50px -20px var(--shadow);
       position: relative;
       transition: background .25s ease, border-color .25s ease;
@@ -136,18 +146,28 @@ function toggleTheme(){
       letter-spacing: .14em;
       text-transform: uppercase;
     }
-    /* Sections */
-    .song-section { margin-bottom: 3rem; }
+    /* Sections & multi-column layout: side-by-side columns on wide screens */
+    .song-content {
+      columns: 24rem auto;
+      column-gap: 3.5rem;
+      column-rule: 1px solid var(--line);
+    }
+    .song-section {
+      margin-bottom: 2.2rem;
+      break-inside: avoid-column;
+    }
     .section-title {
       font-size: .72rem;
       font-weight: 600;
       letter-spacing: .22em;
       text-transform: uppercase;
       color: var(--section);
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.3rem;
       display: flex;
       align-items: center;
       gap: .9rem;
+      break-after: avoid;
+      break-inside: avoid;
     }
     .section-title::after {
       content: '';
@@ -158,13 +178,16 @@ function toggleTheme(){
     .section-lines {
       display: flex;
       flex-direction: column;
-      gap: 1.6rem;
+      gap: 1.5rem;
       font-family: var(--mono);
-      font-size: .98rem;
+      font-size: .96rem;
       font-variant-ligatures: none;
     }
 
-    /* Chord + lyric rows */
+    /* Chord + lyric rows: avoid splitting lines across columns */
+    .chord-lyric-row, .chord-only-row, .lyric-only-row {
+      break-inside: avoid;
+    }
     .chord-lyric-row {
       display: flex;
       flex-wrap: wrap;
@@ -190,7 +213,8 @@ function toggleTheme(){
     .lyric { color: var(--ink); white-space: pre; }
     .chord-only-row {
       display: flex;
-      gap: 2rem;
+      flex-wrap: wrap;
+      gap: 1.5rem;
       color: var(--accent);
       font-weight: 600;
       padding: .15rem 0;
@@ -198,7 +222,12 @@ function toggleTheme(){
     .lyric-only-row { color: var(--ink); }
 
     /* Hover diagram popover */
-    .chord-with-hover { position: relative; display: inline-block; cursor: help; }
+    .chord-with-hover {
+      position: relative;
+      display: inline-block;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
     .chord-popover {
       position: absolute;
       bottom: calc(100% + 10px);
@@ -224,7 +253,8 @@ function toggleTheme(){
       border: 6px solid transparent;
       border-top-color: var(--line);
     }
-    .chord-with-hover:hover .chord-popover {
+    .chord-with-hover:hover .chord-popover,
+    .chord-with-hover.active-popover .chord-popover {
       visibility: visible;
       opacity: 1;
       transform: translateX(-50%) translateY(0);
@@ -243,11 +273,14 @@ function toggleTheme(){
     .chord-popover-text span { color: var(--muted); }
     .chord-diagram-svg { display: block; }
 
-    /* Chord palette footer */
+    /* Chord palette: generated wherever {chords} / [Chords] is placed */
     .song-chords-palette {
-      margin-top: 3.5rem;
-      padding-top: 1.8rem;
-      border-top: 1px solid var(--line);
+      margin: 1.2rem 0 2.2rem;
+      padding: 1.1rem 1.3rem;
+      background: var(--chip);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      break-inside: avoid;
     }
     .palette-title {
       font-size: .68rem;
@@ -255,13 +288,14 @@ function toggleTheme(){
       letter-spacing: .2em;
       text-transform: uppercase;
       color: var(--faint);
-      margin-bottom: 1.4rem;
+      margin-bottom: .9rem;
     }
-    .palette-grid { display: flex; flex-wrap: wrap; gap: .9rem; }
+    .palette-grid { display: flex; flex-wrap: wrap; gap: .75rem; }
     .palette-item {
       border: 1px solid var(--line);
       border-radius: 4px;
-      padding: .45rem .55rem .3rem;
+      padding: .4rem .5rem .25rem;
+      background: var(--paper);
       transition: border-color .18s ease, transform .18s ease;
     }
     .palette-item:hover { border-color: var(--accent); transform: translateY(-2px); }
@@ -276,10 +310,66 @@ function toggleTheme(){
     .chord-diagram-svg .diag-open { stroke: var(--muted); }
     .chord-diagram-svg .diag-mute { fill: var(--accent-2); font-family: var(--mono); font-weight: 700; }
 
-    @media (max-width: 640px) {
-      body { padding: 1.5rem .75rem; }
-      .sheet { padding: 3rem 1.5rem 2.5rem; }
-      .song-title { font-size: 2rem; }
+    /* Mobile screens: single column, zero horizontal waste, touch-friendly */
+    @media (max-width: 680px) {
+      body { padding: 0; }
+      .sheet {
+        padding: 1.25rem .9rem 2rem;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      .song-content {
+        columns: 100% 1;
+        column-gap: 0;
+        column-rule: none;
+      }
+      .theme-toggle {
+        top: 1rem;
+        right: 1rem;
+        width: 2.2rem;
+        height: 2.2rem;
+      }
+      .song-header {
+        margin-bottom: 1.5rem;
+        padding-right: 2.6rem;
+      }
+      .song-title {
+        font-size: 1.7rem;
+        line-height: 1.2;
+      }
+      .song-artist {
+        font-size: .95rem;
+        margin-top: .25rem;
+      }
+      .song-badges {
+        margin-top: .9rem;
+        padding-top: .7rem;
+        gap: .45rem;
+      }
+      .badge {
+        font-size: .7rem;
+        padding: .2rem .45rem;
+      }
+      .song-section { margin-bottom: 1.6rem; }
+      .section-title {
+        font-size: .66rem;
+        margin-bottom: .9rem;
+      }
+      .section-lines {
+        gap: 1.15rem;
+        font-size: .88rem;
+      }
+      .chord { font-size: .82rem; }
+      .chord-popover {
+        bottom: calc(100% + 6px);
+        max-width: calc(100vw - 2rem);
+      }
+      .song-chords-palette {
+        padding: .85rem .95rem;
+        margin: 1rem 0 1.5rem;
+      }
+      .palette-grid { gap: .55rem; }
     }
     @media print {
       /* Always print in light colors, whatever the screen theme is */
@@ -318,9 +408,20 @@ function toggleTheme(){
     </header>
 
     <section class="song-content">
-      <div class="song-section">
-        <div class="section-lines">
 
+      <div class="song-chords-palette">
+        <div class="palette-title">Chords in this song</div>
+        <div class="palette-grid">
+          <div class="palette-item"><svg class="chord-diagram-svg" viewBox="0 0 120 145" width="120" height="145"><text class="diag-name" x="60" y="17" font-size="13" text-anchor="middle" font-family="var(--sans)">Am</text><line class="grid-line" x1="22" y1="32" x2="22" y2="104" stroke-width="1" /><line class="grid-line" x1="37" y1="32" x2="37" y2="104" stroke-width="1" /><line class="grid-line" x1="52" y1="32" x2="52" y2="104" stroke-width="1" /><line class="grid-line" x1="67" y1="32" x2="67" y2="104" stroke-width="1" /><line class="grid-line" x1="82" y1="32" x2="82" y2="104" stroke-width="1" /><line class="grid-line" x1="97" y1="32" x2="97" y2="104" stroke-width="1" /><line class="grid-line" x1="22" y1="50" x2="97" y2="50" stroke-width="1" /><line class="grid-line" x1="22" y1="68" x2="97" y2="68" stroke-width="1" /><line class="grid-line" x1="22" y1="86" x2="97" y2="86" stroke-width="1" /><line class="grid-line" x1="22" y1="104" x2="97" y2="104" stroke-width="1" /><rect class="nut-line" x="22" y="32" width="75" height="3" rx="1.5" /><text class="diag-mute" x="22" y="25" font-size="11" text-anchor="middle" font-family="var(--mono)">&#215;</text><circle class="diag-open" cx="37" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="97" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-dot" cx="52" cy="59" r="5.5" /><text class="diag-finger" x="52" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">2</text><circle class="diag-dot" cx="67" cy="59" r="5.5" /><text class="diag-finger" x="67" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">3</text><circle class="diag-dot" cx="82" cy="41" r="5.5" /><text class="diag-finger" x="82" y="44" font-size="8.5" text-anchor="middle" font-family="var(--mono)">1</text></svg></div>
+          <div class="palette-item"><svg class="chord-diagram-svg" viewBox="0 0 120 145" width="120" height="145"><text class="diag-name" x="60" y="17" font-size="13" text-anchor="middle" font-family="var(--sans)">D/F#</text><line class="grid-line" x1="22" y1="32" x2="22" y2="104" stroke-width="1" /><line class="grid-line" x1="37" y1="32" x2="37" y2="104" stroke-width="1" /><line class="grid-line" x1="52" y1="32" x2="52" y2="104" stroke-width="1" /><line class="grid-line" x1="67" y1="32" x2="67" y2="104" stroke-width="1" /><line class="grid-line" x1="82" y1="32" x2="82" y2="104" stroke-width="1" /><line class="grid-line" x1="97" y1="32" x2="97" y2="104" stroke-width="1" /><line class="grid-line" x1="22" y1="50" x2="97" y2="50" stroke-width="1" /><line class="grid-line" x1="22" y1="68" x2="97" y2="68" stroke-width="1" /><line class="grid-line" x1="22" y1="86" x2="97" y2="86" stroke-width="1" /><line class="grid-line" x1="22" y1="104" x2="97" y2="104" stroke-width="1" /><rect class="nut-line" x="22" y="32" width="75" height="3" rx="1.5" /><circle class="diag-open" cx="37" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="52" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-dot" cx="22" cy="59" r="5.5" /><text class="diag-finger" x="22" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">1</text><circle class="diag-dot" cx="67" cy="59" r="5.5" /><text class="diag-finger" x="67" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">2</text><circle class="diag-dot" cx="82" cy="77" r="5.5" /><text class="diag-finger" x="82" y="80" font-size="8.5" text-anchor="middle" font-family="var(--mono)">4</text><circle class="diag-dot" cx="97" cy="59" r="5.5" /><text class="diag-finger" x="97" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">3</text></svg></div>
+          <div class="palette-item"><svg class="chord-diagram-svg" viewBox="0 0 120 145" width="120" height="145"><text class="diag-name" x="60" y="17" font-size="13" text-anchor="middle" font-family="var(--sans)">Em</text><line class="grid-line" x1="22" y1="32" x2="22" y2="104" stroke-width="1" /><line class="grid-line" x1="37" y1="32" x2="37" y2="104" stroke-width="1" /><line class="grid-line" x1="52" y1="32" x2="52" y2="104" stroke-width="1" /><line class="grid-line" x1="67" y1="32" x2="67" y2="104" stroke-width="1" /><line class="grid-line" x1="82" y1="32" x2="82" y2="104" stroke-width="1" /><line class="grid-line" x1="97" y1="32" x2="97" y2="104" stroke-width="1" /><line class="grid-line" x1="22" y1="50" x2="97" y2="50" stroke-width="1" /><line class="grid-line" x1="22" y1="68" x2="97" y2="68" stroke-width="1" /><line class="grid-line" x1="22" y1="86" x2="97" y2="86" stroke-width="1" /><line class="grid-line" x1="22" y1="104" x2="97" y2="104" stroke-width="1" /><rect class="nut-line" x="22" y="32" width="75" height="3" rx="1.5" /><circle class="diag-open" cx="22" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="67" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="82" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="97" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-dot" cx="37" cy="59" r="5.5" /><text class="diag-finger" x="37" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">1</text><circle class="diag-dot" cx="52" cy="59" r="5.5" /><text class="diag-finger" x="52" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">2</text></svg></div>
+          <div class="palette-item"><svg class="chord-diagram-svg" viewBox="0 0 120 145" width="120" height="145"><text class="diag-name" x="60" y="17" font-size="13" text-anchor="middle" font-family="var(--sans)">G</text><line class="grid-line" x1="22" y1="32" x2="22" y2="104" stroke-width="1" /><line class="grid-line" x1="37" y1="32" x2="37" y2="104" stroke-width="1" /><line class="grid-line" x1="52" y1="32" x2="52" y2="104" stroke-width="1" /><line class="grid-line" x1="67" y1="32" x2="67" y2="104" stroke-width="1" /><line class="grid-line" x1="82" y1="32" x2="82" y2="104" stroke-width="1" /><line class="grid-line" x1="97" y1="32" x2="97" y2="104" stroke-width="1" /><line class="grid-line" x1="22" y1="50" x2="97" y2="50" stroke-width="1" /><line class="grid-line" x1="22" y1="68" x2="97" y2="68" stroke-width="1" /><line class="grid-line" x1="22" y1="86" x2="97" y2="86" stroke-width="1" /><line class="grid-line" x1="22" y1="104" x2="97" y2="104" stroke-width="1" /><rect class="nut-line" x="22" y="32" width="75" height="3" rx="1.5" /><circle class="diag-open" cx="52" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="67" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="82" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-dot" cx="22" cy="77" r="5.5" /><text class="diag-finger" x="22" y="80" font-size="8.5" text-anchor="middle" font-family="var(--mono)">2</text><circle class="diag-dot" cx="37" cy="59" r="5.5" /><text class="diag-finger" x="37" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">1</text><circle class="diag-dot" cx="97" cy="77" r="5.5" /><text class="diag-finger" x="97" y="80" font-size="8.5" text-anchor="middle" font-family="var(--mono)">3</text></svg></div>
+          <div class="palette-item"><svg class="chord-diagram-svg" viewBox="0 0 120 145" width="120" height="145"><text class="diag-name" x="60" y="17" font-size="13" text-anchor="middle" font-family="var(--sans)">F</text><line class="grid-line" x1="22" y1="32" x2="22" y2="104" stroke-width="1" /><line class="grid-line" x1="37" y1="32" x2="37" y2="104" stroke-width="1" /><line class="grid-line" x1="52" y1="32" x2="52" y2="104" stroke-width="1" /><line class="grid-line" x1="67" y1="32" x2="67" y2="104" stroke-width="1" /><line class="grid-line" x1="82" y1="32" x2="82" y2="104" stroke-width="1" /><line class="grid-line" x1="97" y1="32" x2="97" y2="104" stroke-width="1" /><line class="grid-line" x1="22" y1="50" x2="97" y2="50" stroke-width="1" /><line class="grid-line" x1="22" y1="68" x2="97" y2="68" stroke-width="1" /><line class="grid-line" x1="22" y1="86" x2="97" y2="86" stroke-width="1" /><line class="grid-line" x1="22" y1="104" x2="97" y2="104" stroke-width="1" /><rect class="nut-line" x="22" y="32" width="75" height="3" rx="1.5" /><rect class="diag-dot" x="37" y="72" width="15" height="10" rx="5" /><circle class="diag-dot" cx="22" cy="41" r="5.5" /><circle class="diag-dot" cx="37" cy="77" r="5.5" /><text class="diag-finger" x="37" y="80" font-size="8.5" text-anchor="middle" font-family="var(--mono)">1</text><circle class="diag-dot" cx="52" cy="77" r="5.5" /><text class="diag-finger" x="52" y="80" font-size="8.5" text-anchor="middle" font-family="var(--mono)">1</text><circle class="diag-dot" cx="67" cy="59" r="5.5" /><circle class="diag-dot" cx="82" cy="41" r="5.5" /><circle class="diag-dot" cx="97" cy="41" r="5.5" /></svg></div>
+          <div class="palette-item"><svg class="chord-diagram-svg" viewBox="0 0 120 145" width="120" height="145"><text class="diag-name" x="60" y="17" font-size="13" text-anchor="middle" font-family="var(--sans)">D9/F#</text><line class="grid-line" x1="22" y1="32" x2="22" y2="104" stroke-width="1" /><line class="grid-line" x1="37" y1="32" x2="37" y2="104" stroke-width="1" /><line class="grid-line" x1="52" y1="32" x2="52" y2="104" stroke-width="1" /><line class="grid-line" x1="67" y1="32" x2="67" y2="104" stroke-width="1" /><line class="grid-line" x1="82" y1="32" x2="82" y2="104" stroke-width="1" /><line class="grid-line" x1="97" y1="32" x2="97" y2="104" stroke-width="1" /><line class="grid-line" x1="22" y1="50" x2="97" y2="50" stroke-width="1" /><line class="grid-line" x1="22" y1="68" x2="97" y2="68" stroke-width="1" /><line class="grid-line" x1="22" y1="86" x2="97" y2="86" stroke-width="1" /><line class="grid-line" x1="22" y1="104" x2="97" y2="104" stroke-width="1" /><rect class="nut-line" x="22" y="32" width="75" height="3" rx="1.5" /><circle class="diag-open" cx="37" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="52" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="97" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-dot" cx="22" cy="59" r="5.5" /><text class="diag-finger" x="22" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">2</text><circle class="diag-dot" cx="67" cy="59" r="5.5" /><text class="diag-finger" x="67" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">3</text><circle class="diag-dot" cx="82" cy="41" r="5.5" /><text class="diag-finger" x="82" y="44" font-size="8.5" text-anchor="middle" font-family="var(--mono)">1</text></svg></div>
+          <div class="palette-item"><svg class="chord-diagram-svg" viewBox="0 0 120 145" width="120" height="145"><text class="diag-name" x="60" y="17" font-size="13" text-anchor="middle" font-family="var(--sans)">C</text><line class="grid-line" x1="22" y1="32" x2="22" y2="104" stroke-width="1" /><line class="grid-line" x1="37" y1="32" x2="37" y2="104" stroke-width="1" /><line class="grid-line" x1="52" y1="32" x2="52" y2="104" stroke-width="1" /><line class="grid-line" x1="67" y1="32" x2="67" y2="104" stroke-width="1" /><line class="grid-line" x1="82" y1="32" x2="82" y2="104" stroke-width="1" /><line class="grid-line" x1="97" y1="32" x2="97" y2="104" stroke-width="1" /><line class="grid-line" x1="22" y1="50" x2="97" y2="50" stroke-width="1" /><line class="grid-line" x1="22" y1="68" x2="97" y2="68" stroke-width="1" /><line class="grid-line" x1="22" y1="86" x2="97" y2="86" stroke-width="1" /><line class="grid-line" x1="22" y1="104" x2="97" y2="104" stroke-width="1" /><rect class="nut-line" x="22" y="32" width="75" height="3" rx="1.5" /><text class="diag-mute" x="22" y="25" font-size="11" text-anchor="middle" font-family="var(--mono)">&#215;</text><circle class="diag-open" cx="67" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="97" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-dot" cx="37" cy="77" r="5.5" /><text class="diag-finger" x="37" y="80" font-size="8.5" text-anchor="middle" font-family="var(--mono)">3</text><circle class="diag-dot" cx="52" cy="59" r="5.5" /><text class="diag-finger" x="52" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">2</text><circle class="diag-dot" cx="82" cy="41" r="5.5" /><text class="diag-finger" x="82" y="44" font-size="8.5" text-anchor="middle" font-family="var(--mono)">1</text></svg></div>
+          <div class="palette-item"><svg class="chord-diagram-svg" viewBox="0 0 120 145" width="120" height="145"><text class="diag-name" x="60" y="17" font-size="13" text-anchor="middle" font-family="var(--sans)">D</text><line class="grid-line" x1="22" y1="32" x2="22" y2="104" stroke-width="1" /><line class="grid-line" x1="37" y1="32" x2="37" y2="104" stroke-width="1" /><line class="grid-line" x1="52" y1="32" x2="52" y2="104" stroke-width="1" /><line class="grid-line" x1="67" y1="32" x2="67" y2="104" stroke-width="1" /><line class="grid-line" x1="82" y1="32" x2="82" y2="104" stroke-width="1" /><line class="grid-line" x1="97" y1="32" x2="97" y2="104" stroke-width="1" /><line class="grid-line" x1="22" y1="50" x2="97" y2="50" stroke-width="1" /><line class="grid-line" x1="22" y1="68" x2="97" y2="68" stroke-width="1" /><line class="grid-line" x1="22" y1="86" x2="97" y2="86" stroke-width="1" /><line class="grid-line" x1="22" y1="104" x2="97" y2="104" stroke-width="1" /><rect class="nut-line" x="22" y="32" width="75" height="3" rx="1.5" /><text class="diag-mute" x="22" y="25" font-size="11" text-anchor="middle" font-family="var(--mono)">&#215;</text><text class="diag-mute" x="37" y="25" font-size="11" text-anchor="middle" font-family="var(--mono)">&#215;</text><circle class="diag-open" cx="52" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-dot" cx="67" cy="59" r="5.5" /><text class="diag-finger" x="67" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">1</text><circle class="diag-dot" cx="82" cy="77" r="5.5" /><text class="diag-finger" x="82" y="80" font-size="8.5" text-anchor="middle" font-family="var(--mono)">3</text><circle class="diag-dot" cx="97" cy="59" r="5.5" /><text class="diag-finger" x="97" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">2</text></svg></div>
+          <div class="palette-item"><svg class="chord-diagram-svg" viewBox="0 0 120 145" width="120" height="145"><text class="diag-name" x="60" y="17" font-size="13" text-anchor="middle" font-family="var(--sans)">G/F#</text><line class="grid-line" x1="22" y1="32" x2="22" y2="104" stroke-width="1" /><line class="grid-line" x1="37" y1="32" x2="37" y2="104" stroke-width="1" /><line class="grid-line" x1="52" y1="32" x2="52" y2="104" stroke-width="1" /><line class="grid-line" x1="67" y1="32" x2="67" y2="104" stroke-width="1" /><line class="grid-line" x1="82" y1="32" x2="82" y2="104" stroke-width="1" /><line class="grid-line" x1="97" y1="32" x2="97" y2="104" stroke-width="1" /><line class="grid-line" x1="22" y1="50" x2="97" y2="50" stroke-width="1" /><line class="grid-line" x1="22" y1="68" x2="97" y2="68" stroke-width="1" /><line class="grid-line" x1="22" y1="86" x2="97" y2="86" stroke-width="1" /><line class="grid-line" x1="22" y1="104" x2="97" y2="104" stroke-width="1" /><rect class="nut-line" x="22" y="32" width="75" height="3" rx="1.5" /><text class="diag-mute" x="37" y="25" font-size="11" text-anchor="middle" font-family="var(--mono)">&#215;</text><circle class="diag-open" cx="52" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="67" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="82" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-dot" cx="22" cy="59" r="5.5" /><text class="diag-finger" x="22" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">1</text><circle class="diag-dot" cx="97" cy="77" r="5.5" /><text class="diag-finger" x="97" y="80" font-size="8.5" text-anchor="middle" font-family="var(--mono)">2</text></svg></div>
+          <div class="palette-item"><svg class="chord-diagram-svg" viewBox="0 0 120 145" width="120" height="145"><text class="diag-name" x="60" y="17" font-size="13" text-anchor="middle" font-family="var(--sans)">Bm/D</text><line class="grid-line" x1="22" y1="32" x2="22" y2="104" stroke-width="1" /><line class="grid-line" x1="37" y1="32" x2="37" y2="104" stroke-width="1" /><line class="grid-line" x1="52" y1="32" x2="52" y2="104" stroke-width="1" /><line class="grid-line" x1="67" y1="32" x2="67" y2="104" stroke-width="1" /><line class="grid-line" x1="82" y1="32" x2="82" y2="104" stroke-width="1" /><line class="grid-line" x1="97" y1="32" x2="97" y2="104" stroke-width="1" /><line class="grid-line" x1="22" y1="50" x2="97" y2="50" stroke-width="1" /><line class="grid-line" x1="22" y1="68" x2="97" y2="68" stroke-width="1" /><line class="grid-line" x1="22" y1="86" x2="97" y2="86" stroke-width="1" /><line class="grid-line" x1="22" y1="104" x2="97" y2="104" stroke-width="1" /><rect class="nut-line" x="22" y="32" width="75" height="3" rx="1.5" /><text class="diag-mute" x="22" y="25" font-size="11" text-anchor="middle" font-family="var(--mono)">&#215;</text><text class="diag-mute" x="37" y="25" font-size="11" text-anchor="middle" font-family="var(--mono)">&#215;</text><circle class="diag-open" cx="52" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-dot" cx="67" cy="95" r="5.5" /><text class="diag-finger" x="67" y="98" font-size="8.5" text-anchor="middle" font-family="var(--mono)">3</text><circle class="diag-dot" cx="82" cy="77" r="5.5" /><text class="diag-finger" x="82" y="80" font-size="8.5" text-anchor="middle" font-family="var(--mono)">2</text><circle class="diag-dot" cx="97" cy="59" r="5.5" /><text class="diag-finger" x="97" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">1</text></svg></div>
         </div>
       </div>
 
@@ -354,22 +455,6 @@ function toggleTheme(){
       </div>
 
     </section>
-
-    <footer class="song-chords-palette">
-      <div class="palette-title">Chords in this song</div>
-      <div class="palette-grid">
-        <div class="palette-item"><svg class="chord-diagram-svg" viewBox="0 0 120 145" width="120" height="145"><text class="diag-name" x="60" y="17" font-size="13" text-anchor="middle" font-family="var(--sans)">Am</text><line class="grid-line" x1="22" y1="32" x2="22" y2="104" stroke-width="1" /><line class="grid-line" x1="37" y1="32" x2="37" y2="104" stroke-width="1" /><line class="grid-line" x1="52" y1="32" x2="52" y2="104" stroke-width="1" /><line class="grid-line" x1="67" y1="32" x2="67" y2="104" stroke-width="1" /><line class="grid-line" x1="82" y1="32" x2="82" y2="104" stroke-width="1" /><line class="grid-line" x1="97" y1="32" x2="97" y2="104" stroke-width="1" /><line class="grid-line" x1="22" y1="50" x2="97" y2="50" stroke-width="1" /><line class="grid-line" x1="22" y1="68" x2="97" y2="68" stroke-width="1" /><line class="grid-line" x1="22" y1="86" x2="97" y2="86" stroke-width="1" /><line class="grid-line" x1="22" y1="104" x2="97" y2="104" stroke-width="1" /><rect class="nut-line" x="22" y="32" width="75" height="3" rx="1.5" /><text class="diag-mute" x="22" y="25" font-size="11" text-anchor="middle" font-family="var(--mono)">&#215;</text><circle class="diag-open" cx="37" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="97" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-dot" cx="52" cy="59" r="5.5" /><text class="diag-finger" x="52" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">2</text><circle class="diag-dot" cx="67" cy="59" r="5.5" /><text class="diag-finger" x="67" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">3</text><circle class="diag-dot" cx="82" cy="41" r="5.5" /><text class="diag-finger" x="82" y="44" font-size="8.5" text-anchor="middle" font-family="var(--mono)">1</text></svg></div>
-        <div class="palette-item"><svg class="chord-diagram-svg" viewBox="0 0 120 145" width="120" height="145"><text class="diag-name" x="60" y="17" font-size="13" text-anchor="middle" font-family="var(--sans)">D/F#</text><line class="grid-line" x1="22" y1="32" x2="22" y2="104" stroke-width="1" /><line class="grid-line" x1="37" y1="32" x2="37" y2="104" stroke-width="1" /><line class="grid-line" x1="52" y1="32" x2="52" y2="104" stroke-width="1" /><line class="grid-line" x1="67" y1="32" x2="67" y2="104" stroke-width="1" /><line class="grid-line" x1="82" y1="32" x2="82" y2="104" stroke-width="1" /><line class="grid-line" x1="97" y1="32" x2="97" y2="104" stroke-width="1" /><line class="grid-line" x1="22" y1="50" x2="97" y2="50" stroke-width="1" /><line class="grid-line" x1="22" y1="68" x2="97" y2="68" stroke-width="1" /><line class="grid-line" x1="22" y1="86" x2="97" y2="86" stroke-width="1" /><line class="grid-line" x1="22" y1="104" x2="97" y2="104" stroke-width="1" /><rect class="nut-line" x="22" y="32" width="75" height="3" rx="1.5" /><circle class="diag-open" cx="37" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="52" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-dot" cx="22" cy="59" r="5.5" /><text class="diag-finger" x="22" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">1</text><circle class="diag-dot" cx="67" cy="59" r="5.5" /><text class="diag-finger" x="67" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">2</text><circle class="diag-dot" cx="82" cy="77" r="5.5" /><text class="diag-finger" x="82" y="80" font-size="8.5" text-anchor="middle" font-family="var(--mono)">4</text><circle class="diag-dot" cx="97" cy="59" r="5.5" /><text class="diag-finger" x="97" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">3</text></svg></div>
-        <div class="palette-item"><svg class="chord-diagram-svg" viewBox="0 0 120 145" width="120" height="145"><text class="diag-name" x="60" y="17" font-size="13" text-anchor="middle" font-family="var(--sans)">Em</text><line class="grid-line" x1="22" y1="32" x2="22" y2="104" stroke-width="1" /><line class="grid-line" x1="37" y1="32" x2="37" y2="104" stroke-width="1" /><line class="grid-line" x1="52" y1="32" x2="52" y2="104" stroke-width="1" /><line class="grid-line" x1="67" y1="32" x2="67" y2="104" stroke-width="1" /><line class="grid-line" x1="82" y1="32" x2="82" y2="104" stroke-width="1" /><line class="grid-line" x1="97" y1="32" x2="97" y2="104" stroke-width="1" /><line class="grid-line" x1="22" y1="50" x2="97" y2="50" stroke-width="1" /><line class="grid-line" x1="22" y1="68" x2="97" y2="68" stroke-width="1" /><line class="grid-line" x1="22" y1="86" x2="97" y2="86" stroke-width="1" /><line class="grid-line" x1="22" y1="104" x2="97" y2="104" stroke-width="1" /><rect class="nut-line" x="22" y="32" width="75" height="3" rx="1.5" /><circle class="diag-open" cx="22" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="67" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="82" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="97" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-dot" cx="37" cy="59" r="5.5" /><text class="diag-finger" x="37" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">1</text><circle class="diag-dot" cx="52" cy="59" r="5.5" /><text class="diag-finger" x="52" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">2</text></svg></div>
-        <div class="palette-item"><svg class="chord-diagram-svg" viewBox="0 0 120 145" width="120" height="145"><text class="diag-name" x="60" y="17" font-size="13" text-anchor="middle" font-family="var(--sans)">G</text><line class="grid-line" x1="22" y1="32" x2="22" y2="104" stroke-width="1" /><line class="grid-line" x1="37" y1="32" x2="37" y2="104" stroke-width="1" /><line class="grid-line" x1="52" y1="32" x2="52" y2="104" stroke-width="1" /><line class="grid-line" x1="67" y1="32" x2="67" y2="104" stroke-width="1" /><line class="grid-line" x1="82" y1="32" x2="82" y2="104" stroke-width="1" /><line class="grid-line" x1="97" y1="32" x2="97" y2="104" stroke-width="1" /><line class="grid-line" x1="22" y1="50" x2="97" y2="50" stroke-width="1" /><line class="grid-line" x1="22" y1="68" x2="97" y2="68" stroke-width="1" /><line class="grid-line" x1="22" y1="86" x2="97" y2="86" stroke-width="1" /><line class="grid-line" x1="22" y1="104" x2="97" y2="104" stroke-width="1" /><rect class="nut-line" x="22" y="32" width="75" height="3" rx="1.5" /><circle class="diag-open" cx="52" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="67" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="82" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-dot" cx="22" cy="77" r="5.5" /><text class="diag-finger" x="22" y="80" font-size="8.5" text-anchor="middle" font-family="var(--mono)">2</text><circle class="diag-dot" cx="37" cy="59" r="5.5" /><text class="diag-finger" x="37" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">1</text><circle class="diag-dot" cx="97" cy="77" r="5.5" /><text class="diag-finger" x="97" y="80" font-size="8.5" text-anchor="middle" font-family="var(--mono)">3</text></svg></div>
-        <div class="palette-item"><svg class="chord-diagram-svg" viewBox="0 0 120 145" width="120" height="145"><text class="diag-name" x="60" y="17" font-size="13" text-anchor="middle" font-family="var(--sans)">F</text><line class="grid-line" x1="22" y1="32" x2="22" y2="104" stroke-width="1" /><line class="grid-line" x1="37" y1="32" x2="37" y2="104" stroke-width="1" /><line class="grid-line" x1="52" y1="32" x2="52" y2="104" stroke-width="1" /><line class="grid-line" x1="67" y1="32" x2="67" y2="104" stroke-width="1" /><line class="grid-line" x1="82" y1="32" x2="82" y2="104" stroke-width="1" /><line class="grid-line" x1="97" y1="32" x2="97" y2="104" stroke-width="1" /><line class="grid-line" x1="22" y1="50" x2="97" y2="50" stroke-width="1" /><line class="grid-line" x1="22" y1="68" x2="97" y2="68" stroke-width="1" /><line class="grid-line" x1="22" y1="86" x2="97" y2="86" stroke-width="1" /><line class="grid-line" x1="22" y1="104" x2="97" y2="104" stroke-width="1" /><rect class="nut-line" x="22" y="32" width="75" height="3" rx="1.5" /><rect class="diag-dot" x="37" y="72" width="15" height="10" rx="5" /><circle class="diag-dot" cx="22" cy="41" r="5.5" /><circle class="diag-dot" cx="37" cy="77" r="5.5" /><text class="diag-finger" x="37" y="80" font-size="8.5" text-anchor="middle" font-family="var(--mono)">1</text><circle class="diag-dot" cx="52" cy="77" r="5.5" /><text class="diag-finger" x="52" y="80" font-size="8.5" text-anchor="middle" font-family="var(--mono)">1</text><circle class="diag-dot" cx="67" cy="59" r="5.5" /><circle class="diag-dot" cx="82" cy="41" r="5.5" /><circle class="diag-dot" cx="97" cy="41" r="5.5" /></svg></div>
-        <div class="palette-item"><svg class="chord-diagram-svg" viewBox="0 0 120 145" width="120" height="145"><text class="diag-name" x="60" y="17" font-size="13" text-anchor="middle" font-family="var(--sans)">D9/F#</text><line class="grid-line" x1="22" y1="32" x2="22" y2="104" stroke-width="1" /><line class="grid-line" x1="37" y1="32" x2="37" y2="104" stroke-width="1" /><line class="grid-line" x1="52" y1="32" x2="52" y2="104" stroke-width="1" /><line class="grid-line" x1="67" y1="32" x2="67" y2="104" stroke-width="1" /><line class="grid-line" x1="82" y1="32" x2="82" y2="104" stroke-width="1" /><line class="grid-line" x1="97" y1="32" x2="97" y2="104" stroke-width="1" /><line class="grid-line" x1="22" y1="50" x2="97" y2="50" stroke-width="1" /><line class="grid-line" x1="22" y1="68" x2="97" y2="68" stroke-width="1" /><line class="grid-line" x1="22" y1="86" x2="97" y2="86" stroke-width="1" /><line class="grid-line" x1="22" y1="104" x2="97" y2="104" stroke-width="1" /><rect class="nut-line" x="22" y="32" width="75" height="3" rx="1.5" /><circle class="diag-open" cx="37" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="52" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="97" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-dot" cx="22" cy="59" r="5.5" /><text class="diag-finger" x="22" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">2</text><circle class="diag-dot" cx="67" cy="59" r="5.5" /><text class="diag-finger" x="67" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">3</text><circle class="diag-dot" cx="82" cy="41" r="5.5" /><text class="diag-finger" x="82" y="44" font-size="8.5" text-anchor="middle" font-family="var(--mono)">1</text></svg></div>
-        <div class="palette-item"><svg class="chord-diagram-svg" viewBox="0 0 120 145" width="120" height="145"><text class="diag-name" x="60" y="17" font-size="13" text-anchor="middle" font-family="var(--sans)">C</text><line class="grid-line" x1="22" y1="32" x2="22" y2="104" stroke-width="1" /><line class="grid-line" x1="37" y1="32" x2="37" y2="104" stroke-width="1" /><line class="grid-line" x1="52" y1="32" x2="52" y2="104" stroke-width="1" /><line class="grid-line" x1="67" y1="32" x2="67" y2="104" stroke-width="1" /><line class="grid-line" x1="82" y1="32" x2="82" y2="104" stroke-width="1" /><line class="grid-line" x1="97" y1="32" x2="97" y2="104" stroke-width="1" /><line class="grid-line" x1="22" y1="50" x2="97" y2="50" stroke-width="1" /><line class="grid-line" x1="22" y1="68" x2="97" y2="68" stroke-width="1" /><line class="grid-line" x1="22" y1="86" x2="97" y2="86" stroke-width="1" /><line class="grid-line" x1="22" y1="104" x2="97" y2="104" stroke-width="1" /><rect class="nut-line" x="22" y="32" width="75" height="3" rx="1.5" /><text class="diag-mute" x="22" y="25" font-size="11" text-anchor="middle" font-family="var(--mono)">&#215;</text><circle class="diag-open" cx="67" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="97" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-dot" cx="37" cy="77" r="5.5" /><text class="diag-finger" x="37" y="80" font-size="8.5" text-anchor="middle" font-family="var(--mono)">3</text><circle class="diag-dot" cx="52" cy="59" r="5.5" /><text class="diag-finger" x="52" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">2</text><circle class="diag-dot" cx="82" cy="41" r="5.5" /><text class="diag-finger" x="82" y="44" font-size="8.5" text-anchor="middle" font-family="var(--mono)">1</text></svg></div>
-        <div class="palette-item"><svg class="chord-diagram-svg" viewBox="0 0 120 145" width="120" height="145"><text class="diag-name" x="60" y="17" font-size="13" text-anchor="middle" font-family="var(--sans)">D</text><line class="grid-line" x1="22" y1="32" x2="22" y2="104" stroke-width="1" /><line class="grid-line" x1="37" y1="32" x2="37" y2="104" stroke-width="1" /><line class="grid-line" x1="52" y1="32" x2="52" y2="104" stroke-width="1" /><line class="grid-line" x1="67" y1="32" x2="67" y2="104" stroke-width="1" /><line class="grid-line" x1="82" y1="32" x2="82" y2="104" stroke-width="1" /><line class="grid-line" x1="97" y1="32" x2="97" y2="104" stroke-width="1" /><line class="grid-line" x1="22" y1="50" x2="97" y2="50" stroke-width="1" /><line class="grid-line" x1="22" y1="68" x2="97" y2="68" stroke-width="1" /><line class="grid-line" x1="22" y1="86" x2="97" y2="86" stroke-width="1" /><line class="grid-line" x1="22" y1="104" x2="97" y2="104" stroke-width="1" /><rect class="nut-line" x="22" y="32" width="75" height="3" rx="1.5" /><text class="diag-mute" x="22" y="25" font-size="11" text-anchor="middle" font-family="var(--mono)">&#215;</text><text class="diag-mute" x="37" y="25" font-size="11" text-anchor="middle" font-family="var(--mono)">&#215;</text><circle class="diag-open" cx="52" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-dot" cx="67" cy="59" r="5.5" /><text class="diag-finger" x="67" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">1</text><circle class="diag-dot" cx="82" cy="77" r="5.5" /><text class="diag-finger" x="82" y="80" font-size="8.5" text-anchor="middle" font-family="var(--mono)">3</text><circle class="diag-dot" cx="97" cy="59" r="5.5" /><text class="diag-finger" x="97" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">2</text></svg></div>
-        <div class="palette-item"><svg class="chord-diagram-svg" viewBox="0 0 120 145" width="120" height="145"><text class="diag-name" x="60" y="17" font-size="13" text-anchor="middle" font-family="var(--sans)">G/F#</text><line class="grid-line" x1="22" y1="32" x2="22" y2="104" stroke-width="1" /><line class="grid-line" x1="37" y1="32" x2="37" y2="104" stroke-width="1" /><line class="grid-line" x1="52" y1="32" x2="52" y2="104" stroke-width="1" /><line class="grid-line" x1="67" y1="32" x2="67" y2="104" stroke-width="1" /><line class="grid-line" x1="82" y1="32" x2="82" y2="104" stroke-width="1" /><line class="grid-line" x1="97" y1="32" x2="97" y2="104" stroke-width="1" /><line class="grid-line" x1="22" y1="50" x2="97" y2="50" stroke-width="1" /><line class="grid-line" x1="22" y1="68" x2="97" y2="68" stroke-width="1" /><line class="grid-line" x1="22" y1="86" x2="97" y2="86" stroke-width="1" /><line class="grid-line" x1="22" y1="104" x2="97" y2="104" stroke-width="1" /><rect class="nut-line" x="22" y="32" width="75" height="3" rx="1.5" /><text class="diag-mute" x="37" y="25" font-size="11" text-anchor="middle" font-family="var(--mono)">&#215;</text><circle class="diag-open" cx="52" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="67" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-open" cx="82" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-dot" cx="22" cy="59" r="5.5" /><text class="diag-finger" x="22" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">1</text><circle class="diag-dot" cx="97" cy="77" r="5.5" /><text class="diag-finger" x="97" y="80" font-size="8.5" text-anchor="middle" font-family="var(--mono)">2</text></svg></div>
-        <div class="palette-item"><svg class="chord-diagram-svg" viewBox="0 0 120 145" width="120" height="145"><text class="diag-name" x="60" y="17" font-size="13" text-anchor="middle" font-family="var(--sans)">Bm/D</text><line class="grid-line" x1="22" y1="32" x2="22" y2="104" stroke-width="1" /><line class="grid-line" x1="37" y1="32" x2="37" y2="104" stroke-width="1" /><line class="grid-line" x1="52" y1="32" x2="52" y2="104" stroke-width="1" /><line class="grid-line" x1="67" y1="32" x2="67" y2="104" stroke-width="1" /><line class="grid-line" x1="82" y1="32" x2="82" y2="104" stroke-width="1" /><line class="grid-line" x1="97" y1="32" x2="97" y2="104" stroke-width="1" /><line class="grid-line" x1="22" y1="50" x2="97" y2="50" stroke-width="1" /><line class="grid-line" x1="22" y1="68" x2="97" y2="68" stroke-width="1" /><line class="grid-line" x1="22" y1="86" x2="97" y2="86" stroke-width="1" /><line class="grid-line" x1="22" y1="104" x2="97" y2="104" stroke-width="1" /><rect class="nut-line" x="22" y="32" width="75" height="3" rx="1.5" /><text class="diag-mute" x="22" y="25" font-size="11" text-anchor="middle" font-family="var(--mono)">&#215;</text><text class="diag-mute" x="37" y="25" font-size="11" text-anchor="middle" font-family="var(--mono)">&#215;</text><circle class="diag-open" cx="52" cy="22" r="3.5" stroke-width="1.5" fill="none" /><circle class="diag-dot" cx="67" cy="95" r="5.5" /><text class="diag-finger" x="67" y="98" font-size="8.5" text-anchor="middle" font-family="var(--mono)">3</text><circle class="diag-dot" cx="82" cy="77" r="5.5" /><text class="diag-finger" x="82" y="80" font-size="8.5" text-anchor="middle" font-family="var(--mono)">2</text><circle class="diag-dot" cx="97" cy="59" r="5.5" /><text class="diag-finger" x="97" y="62" font-size="8.5" text-anchor="middle" font-family="var(--mono)">1</text></svg></div>
-      </div>
-    </footer>
 
   </main>
 </body>
