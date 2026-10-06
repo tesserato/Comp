@@ -1,7 +1,7 @@
 module HtmlRenderer (generateHtml) where
 
 import AST
-import CSS (cssStyles)
+import CSS (cssStyles, themeScript)
 import Fingering (solveChordDiagram, defaultChordLibrary)
 import SvgRenderer (renderChordSvg)
 import Data.Char (toLower)
@@ -54,12 +54,18 @@ generateHtml song =
     , "  <meta charset=\"UTF-8\">"
     , "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
     , "  <title>" ++ escapeHtml (getTitle song) ++ "</title>"
+    , "  <script>"
+    , themeScript
+    , "  </script>"
     , "  <style>"
     , cssStyles
     , "  </style>"
     , "</head>"
     , "<body>"
-    , "  <main class=\"chordbook-container\">"
+    , "  <main class=\"sheet\">"
+    , "    <button class=\"theme-toggle\" onclick=\"toggleTheme()\" aria-label=\"Toggle theme\" title=\"Toggle light / dark\">"
+    , "      <span class=\"icon-moon\">&#9790;</span><span class=\"icon-sun\">&#9788;</span>"
+    , "    </button>"
     , renderHeader song
     , renderBody song chordMap
     , renderChordPalette chordMap
