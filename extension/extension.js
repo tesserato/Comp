@@ -135,6 +135,13 @@ function renderHoverContent(chordName, frets) {
   return md;
 }
 
+function renderRecognizedChordHover(chordName) {
+  const md = new vscode.MarkdownString();
+  md.appendMarkdown(`### **${chordName}**\n\n`);
+  md.appendMarkdown('Recognized chord. Add a custom voicing such as `D9/F#:200232` to show a diagram.');
+  return md;
+}
+
 function findCustomChords(document) {
   const map = new Map();
   const lineCount = document.lineCount;
@@ -230,7 +237,7 @@ function activate(context) {
       if (frets) {
         return new vscode.Hover(renderHoverContent(matchedChord, frets), matchedRange);
       }
-      return null;
+      return new vscode.Hover(renderRecognizedChordHover(matchedChord), matchedRange);
     }
   });
 

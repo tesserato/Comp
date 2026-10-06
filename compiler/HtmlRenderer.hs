@@ -143,8 +143,7 @@ renderItem chordMap (ChordOnlyLine chords) =
   "</div>"
 renderItem _ (LyricOnlyLine lyric) =
   "          <div class=\"lyric-only-row\">" ++ escapeHtml lyric ++ "</div>"
-renderItem _ (CommentLine comment) =
-  "          <div class=\"comment-row\">" ++ escapeHtml comment ++ "</div>"
+renderItem _ (CommentLine _) = ""
 
 renderSyllable :: ChordMap -> ChordSyllable -> String
 renderSyllable chordMap (ChordSyllable mChord lyric) =
@@ -164,9 +163,11 @@ renderChordWithHover chordMap name isValid =
   let valClass = if isValid then "chord-valid" else "chord-custom"
   in case lookup name chordMap of
        Just diag ->
-         "<span class=\"chord-with-diagram\"><span class=\"chord " ++ valClass ++ "\">" ++ escapeHtml name ++ "</span><div class=\"chord-popover\">" ++ renderChordSvg name diag ++ "</div></span>"
+          "<span class=\"chord-with-hover\"><span class=\"chord " ++ valClass ++ "\">" ++ escapeHtml name ++ "</span><div class=\"chord-popover\">" ++ renderChordSvg name diag ++ "</div></span>"
        Nothing ->
-         "<span class=\"chord " ++ valClass ++ "\">" ++ escapeHtml name ++ "</span>"
+         if isValid
+         then "<span class=\"chord-with-hover\"><span class=\"chord " ++ valClass ++ "\">" ++ escapeHtml name ++ "</span><div class=\"chord-popover chord-popover-text\"><strong>" ++ escapeHtml name ++ "</strong><span>Recognized chord. Add a custom voicing to show a diagram.</span></div></span>"
+         else "<span class=\"chord " ++ valClass ++ "\">" ++ escapeHtml name ++ "</span>"
 
 renderChordPalette :: ChordMap -> String
 renderChordPalette [] = ""
