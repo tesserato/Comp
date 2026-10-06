@@ -95,12 +95,15 @@ renderHeader song =
       otherMeta = filter (\(k, _) -> map toLower k `notElem` ["title", "artist", "key", "capo", "tempo"]) meta
   in unlines $
     [ "    <header class=\"song-header\">"
-    , "      <h1 class=\"song-title\">" ++ escapeHtml title ++ "</h1>"
+    , "      <div class=\"header-main\">"
+    , "        <h1 class=\"song-title\">" ++ escapeHtml title ++ "</h1>"
     ] ++
     (case artist of
-       Just a  -> [ "      <div class=\"song-artist\">" ++ escapeHtml a ++ "</div>" ]
+       Just a  -> [ "        <span class=\"song-artist\">" ++ escapeHtml a ++ "</span>" ]
        Nothing -> []) ++
-    [ "      <div class=\"song-badges\">" ] ++
+    [ "      </div>"
+    , "      <div class=\"song-badges\">"
+    ] ++
     (case key of
        Just k  -> [ "        <span class=\"badge badge-key\"><span class=\"badge-label\">KEY</span> " ++ escapeHtml k ++ "</span>" ]
        Nothing -> []) ++
