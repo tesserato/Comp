@@ -116,28 +116,36 @@ renderHeader song =
     ]
 
 renderBody :: Song -> ChordMap -> String
-renderBody song chordMap = unlines $
-  [ "    <section class=\"song-content\">" ] ++
-  map (renderSection chordMap) (songSections song) ++
-  [ "    </section>" ]
+renderBody song chordMap =
+  let sections = songSections song
+      isPaletteItem ChordPaletteItem = True
+      isPaletteItem _ = False
+      isCommentItem (CommentLine _) = True
+      isCommentItem _ = False
+      isTopItem (Section Nothing items) = all (\it -> isPaletteItem it || isCommentItem it) items
+      isTopItem _ = False
+      (leadingSections, otherSections) = span isTopItem sections
+      leadingHtml = concatMap (renderSectionDirect chordMap) leadingSections
+      contentLines = concatMap (renderSectionDirect chordMap) otherSections
+  in (if null leadingHtml then "" else unlines leadingHtml) ++
+     (if null contentLines
+      then ""
+      else unlines $
+        [ "    <section class=\"song-content\" id=\"song-content\">" ] ++
+        contentLines ++
+        [ "    </section>" ])
 
-renderSection :: ChordMap -> Section -> String
-renderSection chordMap (Section Nothing [ChordPaletteItem]) =
-  renderChordPalette chordMap
-renderSection chordMap (Section mName items) =
-  let renderedItems = filter (not . all isSpace) (map (renderItem chordMap) items)
-  in if null renderedItems
-     then ""
-     else unlines $
-       [ "      <div class=\"song-section\">" ] ++
-       (case mName of
-          Just name -> [ "        <h2 class=\"section-title\">" ++ escapeHtml name ++ "</h2>" ]
-          Nothing   -> []) ++
-       [ "        <div class=\"section-lines\">" ] ++
-       renderedItems ++
-       [ "        </div>"
-       , "      </div>"
-       ]
+renderSectionDirect :: ChordMap -> Section -> [String]
+renderSectionDirect chordMap (Section Nothing [ChordPaletteItem]) =
+  [ renderChordPalette chordMap ]
+renderSectionDirect chordMap (Section mName items) =
+  let titleHtml = case mName of
+        Just name -> [ "      <h2 class=\"section-title\">" ++ escapeHtml name ++ "</h2>" ]
+        Nothing   -> []
+      renderedItems = filter (not . all isSpace) (map (renderItem chordMap) items)
+  in if null renderedItems && null titleHtml
+     then []
+     else titleHtml ++ renderedItems
 
 renderItem :: ChordMap -> SectionItem -> String
 renderItem chordMap (PairedLine syllables) =
